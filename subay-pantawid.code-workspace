@@ -1,0 +1,55 @@
+{
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "files.associations": {
+            "*.blade.php": "blade"
+        },
+        "emmet.includeLanguages": {
+            "blade": "html"
+        },
+        "blade.format.enable": true,
+        "php.validate.enable": true,
+        "php.suggest.basic": false,
+        "intelephense.files.associations": [
+            "*.php",
+            "*.blade.php"
+        ],
+        "intelephense.environment.includePaths": [
+            "vendor/laravel/framework/src"
+        ],
+        "css.validate": false,
+        "tailwindCSS.includeLanguages": {
+            "blade": "html",
+            "php": "html"
+        },
+        "tailwindCSS.experimental.classRegex": [
+            ["class\\s*=\\s*[\"']([^\"']*)[\"']", "[\"'`]([^\"'`]*).*?[\"'`]"],
+            ["class\\s*=\\s*[\"`]([^\"`]*)[\"`]", "[\"'`]([^\"'`]*).*?[\"'`]"]
+        ],
+        "tailwindCSS.files.exclude": [
+            "**/.git/**",
+            "**/node_modules/**",
+            "**/.hg/**",
+            "**/.svn/**"
+        ],
+        "search.exclude": {
+            "**/vendor": true,
+            "**/node_modules": true,
+            "**/storage": true,
+            "**/bootstrap/cache": true
+        }
+    },
+    "extensions": {
+        "recommendations": [
+            "onecentlin.laravel-blade",
+            "onecentlin.laravel5-snippets",
+            "onecentlin.laravel-extension-pack",
+            "bmewburn.vscode-intelephense-client",
+            "bradlc.vscode-tailwindcss"
+        ]
+    }
+} 
