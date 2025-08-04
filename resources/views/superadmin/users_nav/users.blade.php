@@ -58,18 +58,20 @@
                         <tr>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Company ID</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Full Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Office</th>
                             <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Action</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @foreach ($users as $user)
                         <tr>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ $user->id }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ $user->company_id }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <button onclick="openUserProfile({{ $user->id }})" class="text-black hover:text-blue-800 hover:underline font-medium cursor-pointer">
                                     {{ $user->fullname }}
                                 </button>
                             </td>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ $user->office }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 <button onclick="openArchiveModal({{ $user->id }}, '{{ $user->fullname }}')" class="bg-red-700 hover:bg-red-800 text-white font-bold py-1 px-4 rounded">Archive</button>
                             </td>
@@ -154,14 +156,26 @@
                             <label for="office" class="block font-medium">Office</label>
                             <input type="text" name="office" id="office" class="w-full border rounded px-3 py-2">
                         </div>
-                        <!-- Employee Status -->
-                        <div class="mb-4">
-                            <label for="employee_status" class="block font-medium">Employee Status</label>
-                            <select name="employee_status" id="employee_status" class="w-full border rounded px-3 py-2">
-                                <option value="Regular">Regular</option>
-                                <option value="Contractual">Contractual</option>
-                                <option value="MOA">MOA</option>
-                            </select>
+                        <!-- Employee Status | Company ID -->
+                        <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="employee_status" class="block font-medium">Employee Status</label>
+                                <select name="employee_status" id="employee_status" class="w-full border rounded px-3 py-2" required>
+                                    <option value="Regular" {{ old('employee_status') == 'Regular' ? 'selected' : '' }}>Regular</option>
+                                    <option value="Contractual" {{ old('employee_status') == 'Contractual' ? 'selected' : '' }}>Contractual</option>
+                                    <option value="MOA" {{ old('employee_status') == 'MOA' ? 'selected' : '' }}>MOA</option>
+                                </select>
+                                @error('employee_status')
+                                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div>
+                                <label for="company_id" class="block font-medium">Company ID</label>
+                                <input type="text" name="company_id" id="company_id" class="w-full border rounded px-3 py-2" required value="{{ old('company_id') }}">
+                                @error('company_id')
+                                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
                         </div>
                         <!-- Access Level | Activated -->
                         <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">

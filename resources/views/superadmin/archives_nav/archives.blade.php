@@ -46,27 +46,43 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-800">
                         <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Company ID</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Full Name</th>
-                            <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Date Archived</th>
+                            <th scope="col" class="w-48 px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Company ID</th>
+                            <th scope="col" class="w-48 px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Full Name</th>
+                            <th scope="col" class="w-48 px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Office</th>
+                            <th scope="col" class="w-48 px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Date Archived</th>
+                            <!-- Action column if present -->
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse ($archivedUsers as $user)
                         <tr>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ $user->id }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ $user->company_id }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <button onclick="openUserProfile({{ $user->id }})" class="text-black hover:text-blue-800 hover:underline font-medium cursor-pointer">
                                     {{ $user->fullname }}
                                 </button>
                             </td>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ $user->office }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 {{ $user->archived_at ? $user->archived_at->format('m/d/Y') : '' }}
                             </td>
+                            <!-- Restore Button -->
+                            <!--
+                            <td>
+                                <div class="flex justify-center items-center h-full">
+                                    <form action="{{ route('users.restore', $user->id) }}" method="POST" style="display:inline;">
+                                        @csrf
+                                        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-1 px-3 rounded">
+                                            Restore
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                            -->
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="3" class="px-6 py-4 text-center text-gray-500">
+                            <td colspan="4" class="px-6 py-4 text-center text-gray-500">
                                 No archived users found.
                             </td>
                         </tr>
@@ -74,6 +90,7 @@
                     </tbody>
                 </table>
             </div>
+
             
             <!-- Pagination -->
             <div class="mt-6 flex justify-center">

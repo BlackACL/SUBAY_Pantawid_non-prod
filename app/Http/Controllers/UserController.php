@@ -69,6 +69,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'fullname' => 'required|string|max:255',
             'username' => 'required|string|max:255|unique:users,username',
+            'company_id' => 'required|string|max:255',
             'office' => 'required|string|max:255',
             'region' => 'required|string|max:255',
             'province' => 'required|string|max:255',
