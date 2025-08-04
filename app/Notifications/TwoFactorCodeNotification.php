@@ -36,14 +36,14 @@ class TwoFactorCodeNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $code = $notifiable->two_factor_code;
-        
+
         // Debug: Log the code to see what's happening
         Log::info('2FA Code generated: ' . $code);
-        
+
         return (new MailMessage)
-                    ->line("Your two-factor authentication code is $notifiable->two_factor_code")
-                    ->action('Verify Here', route('verify'))
-                    ->line('The code will expire in 10 minutes');
+            ->line("Your two-factor authentication code is $notifiable->two_factor_code")
+            ->action('Verify Here', route('verify'))
+            ->line('The code will expire in 5 minutes');
     }
 
     /**
