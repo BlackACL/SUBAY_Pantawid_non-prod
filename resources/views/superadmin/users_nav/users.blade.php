@@ -115,9 +115,9 @@
                         <!-- Email -->
                         <div class="mb-4">
                             <label for="email" class="block font-medium">Email</label>
-                            <input type="email" name="email" id="email" class="w-full border rounded px-3 py-2" required>
+                            <input type="email" name="email" id="email" class="w-full border rounded px-3 py-2" required value="{{ old('email') }}">
                             @error('email')
-                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                             @enderror
                         </div>
                         <!-- Full Name -->
@@ -165,9 +165,6 @@
                                     <option value="Contractual" {{ old('employee_status') == 'Contractual' ? 'selected' : '' }}>Contractual</option>
                                     <option value="MOA" {{ old('employee_status') == 'MOA' ? 'selected' : '' }}>MOA</option>
                                 </select>
-                                @error('employee_status')
-                                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                                @enderror
                             </div>
                             <div>
                                 <label for="company_id" class="block font-medium">Company ID</label>
@@ -256,11 +253,6 @@
                 <!-- Modal Header -->
                 <div class="flex items-center justify-between p-6 border-b">
                     <h3 class="text-lg font-semibold text-gray-900">Confirm Archive</h3>
-                    <button onclick="closeArchiveModal()" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
                 </div>
 
                 <!-- Modal Body -->
@@ -283,7 +275,7 @@
 
                 <!-- Modal Footer -->
                 <div class="flex justify-end space-x-3 p-6 border-t bg-gray-50 rounded-b-lg">
-                    <button onclick="window.location.href='{{ route('users') }}'" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">
+                    <button onclick="closeArchiveModal()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">
                         No
                     </button>
                     <form id="archive-form" method="POST" class="inline">
@@ -302,12 +294,14 @@
             document.getElementById('modal-overlay').classList.remove('hidden');
             document.getElementById('modal').classList.remove('hidden');
             document.getElementById('main-content').classList.add('blur-md');
+            document.body.style.overflow = 'hidden';
         }
 
         function closeModal() {
             document.getElementById('modal-overlay').classList.add('hidden');
             document.getElementById('modal').classList.add('hidden');
             document.getElementById('main-content').classList.remove('blur-md');
+            document.body.style.overflow = 'auto';
         }
 
         // Close modal when clicking outside
@@ -545,5 +539,12 @@
                 });
             }
         });
+
+        // Auto-open modal if there are validation errors
+        @if(session('openModal') || $errors->any())
+            document.addEventListener('DOMContentLoaded', function() {
+                openModal();
+            });
+        @endif
     </script>
 </x-superadmin-layout>

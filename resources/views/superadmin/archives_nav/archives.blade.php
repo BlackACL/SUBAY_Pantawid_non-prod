@@ -67,7 +67,7 @@
                                 {{ $user->archived_at ? $user->archived_at->format('m/d/Y') : '' }}
                             </td>
                             <!-- Restore Button -->
-                            <!--
+                            {{-- 
                             <td>
                                 <div class="flex justify-center items-center h-full">
                                     <form action="{{ route('users.restore', $user->id) }}" method="POST" style="display:inline;">
@@ -78,7 +78,7 @@
                                     </form>
                                 </div>
                             </td>
-                            -->
+                            --}}
                         </tr>
                         @empty
                         <tr>

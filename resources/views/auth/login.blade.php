@@ -37,17 +37,19 @@
                 </div>
 
         <!-- Remember Me -->
+        
         <div class="flex items-center justify-between">
+            {{--
             <label class="flex items-center">
                 <input type="checkbox" name="remember" class="form-checkbox">
                 <span class="ml-2 text-xs text-black">Remember Me</span>
             </label>
-
+            --}}
             <a class="text-xs text-black hover:underline" href="{{ route('password.request') }}">
                 Forgot Password?
             </a>
         </div>
-
+        
         <div class="flex flex-col items-center space-y-4 mt-6">
             <button class="bg-[#000033] text-white px-8 py-2 rounded">
                 Log In

@@ -20,6 +20,7 @@ class UserController extends Controller
 
         if ($search) {
             $users = User::active()
+                ->where('id', '!=', auth()->user()->id)
                 ->where(function ($query) use ($search) {
                     $query->where('id', 'LIKE', "%{$search}%")
                         ->orWhere('fullname', 'LIKE', "%{$search}%");
@@ -27,7 +28,7 @@ class UserController extends Controller
                 ->paginate(10)
                 ->withQueryString();
         } else {
-            $users = User::active()->paginate(10);
+            $users = User::active()->where('id', '!=', auth()->user()->id)->latest()->paginate(10);
         }
 
         return view('superadmin.users_nav.users', compact('users'));
@@ -46,7 +47,7 @@ class UserController extends Controller
                 ->paginate(10)
                 ->withQueryString();
         } else {
-            $archivedUsers = User::archived()->paginate(10);
+            $archivedUsers = User::archived()->latest()->paginate(10);
         }
 
         return view('superadmin.archives_nav.archives', compact('archivedUsers'));
@@ -66,21 +67,25 @@ class UserController extends Controller
     public function store(Request $request)
     {
 
-        $validated = $request->validate([
-            'fullname' => 'required|string|max:255',
-            'username' => 'required|string|max:255|unique:users,username',
-            'company_id' => 'required|string|max:255',
-            'office' => 'required|string|max:255',
-            'region' => 'required|string|max:255',
-            'province' => 'required|string|max:255',
-            'municipality' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users,email',
-            'employee_status' => 'required|string|max:255',
-            'access_level' => 'required|string|max:255',
-            'activated' => 'required|string|max:255',
-            'locked_status' => 'required|string|max:255',
-            'deleted_status' => 'required|string|max:255',
-        ]);
+        try {
+            $validated = $request->validate([
+                'fullname' => 'required|string|max:255',
+                'username' => 'required|string|max:255',
+                'company_id' => 'required|string|max:255|unique:users,company_id',
+                'office' => 'required|string|max:255',
+                'region' => 'required|string|max:255',
+                'province' => 'required|string|max:255',
+                'municipality' => 'required|string|max:255',
+                'email' => 'required|email|max:255|unique:users,email',
+                'employee_status' => 'required|string|max:255',
+                'access_level' => 'required|string|max:255',
+                'activated' => 'required|string|max:255',
+                'locked_status' => 'required|string|max:255',
+                'deleted_status' => 'required|string|max:255',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->route('users')->withErrors($e->validator)->withInput()->with('openModal', true);
+        }
 
         // Generate a strong random password
         $password = Str::random(12);
