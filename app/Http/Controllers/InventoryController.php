@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 
@@ -15,97 +16,105 @@ class InventoryController extends Controller
         $this->middleware(['auth', 'verified', 'twofactor']);
     }
 
-public function index(Request $request)
-{
-    $user = auth()->user();
-    $query = DB::table('inventory');
+    public function index(Request $request)
+    {
+        $user = auth()->user();
+        $query = DB::table('inventory');
 
-    // Determine if we should filter by receiver
-    $showAll = $request->has('show_all') && $request->get('show_all') == '1';
+        // Determine if we should filter by receiver
+        $showAll = $request->has('show_all') && $request->get('show_all') == '1';
 
-    if (!$showAll && !in_array($user->access_level, ['Superadmin', 'Regional DPSC', 'Provincial DPSC'])) {
-        $query->where('RECEIVER', $user->fullname);
+        if (!$showAll && !in_array($user->access_level, ['Superadmin', 'Regional DPSC', 'Provincial DPSC'])) {
+            $query->where('RECEIVER', $user->fullname);
+        }
+
+        // Optional filters via dropdowns
+        if ($request->filled('receiver')) {
+            $query->where('RECEIVER', $request->receiver);
+        }
+
+        if ($request->filled('office')) {
+            $query->where('OFFICE', $request->office);
+        }
+
+        $inventory = $query->paginate(15)->appends($request->query());
+
+        $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->whereNotNull('RECEIVER')->pluck('RECEIVER');
+        $offices = DB::table('inventory')->select('OFFICE')->distinct()->whereNotNull('OFFICE')->pluck('OFFICE');
+
+        return view('inventory.upload', compact('inventory', 'receivers', 'offices', 'showAll'));
     }
 
-    // Optional filters via dropdowns
-    if ($request->filled('receiver')) {
-        $query->where('RECEIVER', $request->receiver);
+
+
+    public function showMyInventory(Request $request)
+    {
+        $user = auth()->user();
+        $role = $user->access_level;
+        $fullname = $user->fullname;
+
+        $showAll = $request->input('show_all') === '1';
+
+        $query = DB::table('inventory');
+
+        // Show all only if allowed
+        if (($role === 'Regional DPSC' || $role === 'Provincial DPSC') && $showAll) {
+            // No filtering
+        } else {
+            $query->where('RECEIVER', $fullname);
+        }
+
+        if ($request->filled('receiver')) {
+            $query->where('RECEIVER', 'like', '%' . $request->receiver . '%');
+        }
+
+        if ($request->filled('office')) {
+            $query->where('OFFICE', 'like', '%' . $request->office . '%');
+        }
+
+        $inventory = $query->orderBy('PROPERTY_NO')->paginate(15)->appends($request->all());
+
+        $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->pluck('RECEIVER');
+        $offices = DB::table('inventory')->select('OFFICE')->distinct()->pluck('OFFICE');
+
+        return view('adminDPSC.' . ($role === 'Regional DPSC' ? 'Regional' : 'Provincial') . '.MyInventory', compact('inventory', 'receivers', 'offices', 'showAll'));
     }
 
-    if ($request->filled('office')) {
-        $query->where('OFFICE', $request->office);
+
+    public function showEmployeeInventory(Request $request)
+    {
+        $fullname = auth()->user()->fullname;
+
+        // Debug: Log the user's fullname
+        Log::info("User fullname: {$fullname}");
+
+        // Try exact match first, then case-insensitive match
+        $query = DB::table('inventory')->where(function ($q) use ($fullname) {
+            $q->where('RECEIVER', $fullname)
+                ->orWhere('RECEIVER', 'like', '%' . $fullname . '%')
+                ->orWhere('RECEIVER', 'like', '%' . strtoupper($fullname) . '%')
+                ->orWhere('RECEIVER', 'like', '%' . strtolower($fullname) . '%');
+        });
+
+        if ($request->filled('receiver')) {
+            $query->where('RECEIVER', 'like', '%' . $request->receiver . '%');
+        }
+
+        if ($request->filled('office')) {
+            $query->where('OFFICE', 'like', '%' . $request->office . '%');
+        }
+
+        if ($request->filled('description')) {
+            $query->where('GENERAL_DESCRIPTION', 'like', '%' . $request->description . '%');
+        }
+
+        $inventory = $query->orderBy('PROPERTY_NO')->paginate(15)->appends($request->all());
+
+        $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->whereNotNull('RECEIVER')->pluck('RECEIVER');
+        $offices = DB::table('inventory')->select('OFFICE')->distinct()->whereNotNull('OFFICE')->pluck('OFFICE');
+
+        return view('inventory', compact('inventory', 'receivers', 'offices'));
     }
-
-    $inventory = $query->paginate(15)->appends($request->query());
-
-    $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->whereNotNull('RECEIVER')->pluck('RECEIVER');
-    $offices = DB::table('inventory')->select('OFFICE')->distinct()->whereNotNull('OFFICE')->pluck('OFFICE');
-
-    return view('inventory.upload', compact('inventory', 'receivers', 'offices', 'showAll'));
-}
-
-
-
-public function showMyInventory(Request $request)
-{
-    $user = auth()->user();
-    $role = $user->access_level;
-    $fullname = $user->fullname;
-
-    $showAll = $request->input('show_all') === '1';
-
-    $query = DB::table('inventory');
-
-    // Show all only if allowed
-    if (($role === 'Regional DPSC' || $role === 'Provincial DPSC') && $showAll) {
-        // No filtering
-    } else {
-        $query->where('RECEIVER', $fullname);
-    }
-
-    if ($request->filled('receiver')) {
-        $query->where('RECEIVER', 'like', '%' . $request->receiver . '%');
-    }
-
-    if ($request->filled('office')) {
-        $query->where('OFFICE', 'like', '%' . $request->office . '%');
-    }
-
-    $inventory = $query->orderBy('PROPERTY_NO')->paginate(15)->appends($request->all());
-
-    $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->pluck('RECEIVER');
-    $offices = DB::table('inventory')->select('OFFICE')->distinct()->pluck('OFFICE');
-
-    return view('adminDPSC.' . ($role === 'Regional DPSC' ? 'Regional' : 'Provincial') . '.MyInventory', compact('inventory', 'receivers', 'offices', 'showAll'));
-}
-
-
-public function showEmployeeInventory(Request $request)
-{
-    $fullname = auth()->user()->fullname;
-
-    $query = DB::table('inventory')->where('RECEIVER', $fullname);
-
-    if ($request->filled('receiver')) {
-        $query->where('RECEIVER', 'like', '%' . $request->receiver . '%');
-    }
-
-    if ($request->filled('office')) {
-        $query->where('OFFICE', 'like', '%' . $request->office . '%');
-    }
-
-    if ($request->filled('description')) {
-        $query->where('GENERAL_DESCRIPTION', 'like', '%' . $request->description . '%');
-    }
-
-    $inventory = $query->orderBy('PROPERTY_NO')->paginate(15)->appends($request->all());
-
-    $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->whereNotNull('RECEIVER')->pluck('RECEIVER');
-$offices = DB::table('inventory')->select('OFFICE')->distinct()->whereNotNull('OFFICE')->pluck('OFFICE');
-
-return view('inventory', compact('inventory', 'receivers', 'offices'));
-
-}
 
 
     public function showUploadForm()
@@ -164,10 +173,16 @@ return view('inventory', compact('inventory', 'receivers', 'offices'));
             $data['updated_at'] = $now;
             $insertData[] = $data;
 
+            // Debug: Log some sample data
+            if ($rowCount < 5) {
+                Log::info("Sample row {$rowCount}: " . json_encode($data));
+            }
+
             if (count($insertData) >= 1000) {
                 DB::table('inventory')->insert($insertData);
                 $insertData = [];
             }
+            $rowCount++;
         }
 
         fclose($handle);
@@ -182,47 +197,79 @@ return view('inventory', compact('inventory', 'receivers', 'offices'));
         return redirect()->route('inventory.index')->with('success', "Inventory uploaded successfully! {$rowCount} rows processed.");
     }
 
-public function export()
-{
-    $headers = [
-        'Content-Type' => 'text/csv; charset=UTF-8',
-        'Content-Disposition' => 'attachment; filename="inventory_export.csv"',
-    ];
+    public function export()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="inventory_export.csv"',
+        ];
 
-    // Headers exactly matching your RPMO_Inventory.csv
-    $csvHeaders = [
-        'FUND CODE', 'PROPERTY STATUS', 'ARTICLE DESCRIPTION', 'GENERAL DESCRIPTION',
-        'SERIAL NO.', 'PROPERTY NO', 'PAR NO', 'PAR DATE', 'UNIT', 'QTY',
-        'ACQUISITION COST', 'ACQUISITION DATE', 'RECEIVER', 'SUBPAR',
-        'ACCOUNT CODE', 'WARRANTY', 'OFFICE', 'FOUND IN STATION?', 'LABELLED?', 'DPO REMARKS'
-    ];
+        // Headers exactly matching your RPMO_Inventory.csv
+        $csvHeaders = [
+            'FUND CODE',
+            'PROPERTY STATUS',
+            'ARTICLE DESCRIPTION',
+            'GENERAL DESCRIPTION',
+            'SERIAL NO.',
+            'PROPERTY NO',
+            'PAR NO',
+            'PAR DATE',
+            'UNIT',
+            'QTY',
+            'ACQUISITION COST',
+            'ACQUISITION DATE',
+            'RECEIVER',
+            'SUBPAR',
+            'ACCOUNT CODE',
+            'WARRANTY',
+            'OFFICE',
+            'FOUND IN STATION?',
+            'LABELLED?',
+            'DPO REMARKS'
+        ];
 
-    // Corresponding DB columns
-    $dbColumns = [
-        'FUND_CODE', 'PROPERTY_STATUS', 'ARTICLE_DESCRIPTION', 'GENERAL_DESCRIPTION',
-        'SERIAL_NO', 'PROPERTY_NO', 'PAR_NO', 'PAR_DATE', 'UNIT', 'QTY',
-        'ACQUISITION_COST', 'ACQUISITION_DATE', 'RECEIVER', 'SUBPAR',
-        'ACCOUNT_CODE', 'WARRANTY', 'OFFICE', 'FOUND_IN_STATION', 'LABELLED', 'DPO_REMARKS'
-    ];
+        // Corresponding DB columns
+        $dbColumns = [
+            'FUND_CODE',
+            'PROPERTY_STATUS',
+            'ARTICLE_DESCRIPTION',
+            'GENERAL_DESCRIPTION',
+            'SERIAL_NO',
+            'PROPERTY_NO',
+            'PAR_NO',
+            'PAR_DATE',
+            'UNIT',
+            'QTY',
+            'ACQUISITION_COST',
+            'ACQUISITION_DATE',
+            'RECEIVER',
+            'SUBPAR',
+            'ACCOUNT_CODE',
+            'WARRANTY',
+            'OFFICE',
+            'FOUND_IN_STATION',
+            'LABELLED',
+            'DPO_REMARKS'
+        ];
 
-    $callback = function () use ($csvHeaders, $dbColumns) {
-        $handle = fopen('php://output', 'w');
-        fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM for Excel
-        fputcsv($handle, $csvHeaders);
+        $callback = function () use ($csvHeaders, $dbColumns) {
+            $handle = fopen('php://output', 'w');
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM for Excel
+            fputcsv($handle, $csvHeaders);
 
-        DB::table('inventory')->orderBy('PROPERTY_NO')->chunk(1000, function ($rows) use ($handle, $dbColumns) {
-            foreach ($rows as $row) {
-                $line = [];
-                foreach ($dbColumns as $col) {
-                    $line[] = $row->$col ?? '';
+            DB::table('inventory')->orderBy('PROPERTY_NO')->chunk(1000, function ($rows) use ($handle, $dbColumns) {
+                foreach ($rows as $row) {
+                    $line = [];
+                    foreach ($dbColumns as $col) {
+                        $line[] = $row->$col ?? '';
+                    }
+                    fputcsv($handle, $line);
                 }
-                fputcsv($handle, $line);
-            }
-        });
+            });
 
-        fclose($handle);
-    };
+            fclose($handle);
+        };
 
-    return response()->stream($callback, 200, $headers);
-}
+        return response()->stream($callback, 200, $headers);
+    }
 }
