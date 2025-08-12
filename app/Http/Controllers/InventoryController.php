@@ -173,7 +173,12 @@ class InventoryController extends Controller
             ->paginate($perPage)
             ->appends($request->query());
 
-        $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->pluck('RECEIVER');
+        $receivers = DB::table('inventory')
+            ->select('RECEIVER')
+            ->distinct()
+            ->where('RECEIVER', '!=', auth()->user()->fullname) // 👈 exclude current user
+            ->pluck('RECEIVER');
+
         $allEquipment = DB::table('inventory')->get();
         $inProcessPropertyNos = DB::table('fets_documents')
             ->where('status', 'submitted') // or 'pending', depending on your naming
