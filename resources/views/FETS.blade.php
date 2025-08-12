@@ -33,6 +33,24 @@
                 </div>
             @endif
 
+            {{-- ✅ Show session error --}}
+    @if(session('error'))
+        <div class="bg-red-100 border border-red-400 text-red-700 p-3 mb-4 rounded">
+            {{ session('error') }}
+        </div>
+    @endif
+
+    {{-- ✅ Show validation errors --}}
+    @if($errors->any())
+        <div class="bg-red-100 border border-red-400 text-red-700 p-3 mb-4 rounded">
+            <ul class="list-disc pl-5">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
             <form method="GET" action="{{ route('fets.select') }}" class="mb-4 flex gap-4 flex-wrap" id="filterForm">
                 {{-- FILTER - moved here --}}
                 <div class="mb-4 flex gap-4 flex-wrap">

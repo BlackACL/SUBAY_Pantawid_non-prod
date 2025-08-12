@@ -55,6 +55,18 @@ public function generate(Request $request)
         'remarks'       => 'required|string',
     ]);
 
+    // ✅ Duplication check here
+        $duplicates = FetsDocument::whereIn('property_no', $validated['selected'])
+        ->whereIn('status', ['submitted', 'pending'])
+        ->pluck('property_no')
+        ->toArray();
+
+    if (!empty($duplicates)) {
+        return back()->withErrors([
+            'selected' => 'Some items are already in process: ' . implode(', ', $duplicates)
+        ]);
+    }
+
     $user = auth()->user();
     $toPerson = $validated['to_receiver'];
     $remarks = $validated['remarks'];
@@ -373,12 +385,16 @@ public function generate(Request $request)
         'created_at'  => now(),
     ]);
 
-    return redirect()->route('fets.select')->with([
+    // after saving $fets
+        return redirect()->route('fets.select')->with([
         'success' => 'FETS submitted and PDF generated.',
         'fets_id' => $fets->id,
-        'fets_file_url' => route('fets.download', ['id' => $fets->id]),
+        'fets_preview_url' => route('fets.preview', ['id' => $fets->id]),
+        'fets_download_url' => route('fets.download', ['id' => $fets->id]),
     ]);
+
 }
+
 
     // Helper functions
     private function wrapCommaText($text, $chunkLength = 17)

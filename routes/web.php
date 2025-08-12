@@ -1,5 +1,6 @@
 <?php
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Provincial\FetsVerifyController;
 use App\Http\Controllers\FetsController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\InventoryController;
@@ -70,6 +71,10 @@ Route::middleware(['auth', 'verified', 'twofactor'])->group(function () {
 Route::get('/Inventory', [InventoryController::class, 'showEmployeeInventory'])
     ->middleware(['auth', 'role:Employee', 'verified', 'twofactor'])
     ->name('Inventory');;
+
+Route::get('/provincial/fets/verify/{id}', [FetsVerifyController::class, 'show'])
+    ->name('provincial.fets.verify')
+    ->middleware('auth'); // add role-based middleware if needed
 
 // 📄 FETS File Access Routes
 Route::get('/SubmittedFETS', [FetsController::class, 'submittedFets'])

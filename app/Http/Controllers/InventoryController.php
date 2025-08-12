@@ -175,8 +175,8 @@ class InventoryController extends Controller
 
         $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->pluck('RECEIVER');
         $allEquipment = DB::table('inventory')->get();
-        $inProcessPropertyNos = DB::table('fets_requests')
-            ->where('status', 'in process')
+        $inProcessPropertyNos = DB::table('fets_documents')
+            ->where('status', 'submitted') // or 'pending', depending on your naming
             ->pluck('property_no')
             ->toArray();
 
