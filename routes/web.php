@@ -22,12 +22,12 @@ Route::middleware('auth')->group(function () {
 
     // FETS Selection/Generation (All Roles)
     Route::middleware(['verified', 'twofactor'])->group(function () {
-        Route::get('/FETS', [FetsController::class, 'select'])->name('fets.select');
+        Route::get('/FETS', [InventoryController::class, 'select'])->name('fets.select');
         Route::post('/FETS/generate', [FetsController::class, 'generate'])->name('fets.generate');
     });
 });
 
-// 🔐 SUPERADMIN Routes
+// SUPERADMIN Routes
 Route::middleware(['auth', 'role:superadmin', 'verified', 'twofactor'])->group(function () {
     Route::get('/logs', fn () => view('superadmin.logs_nav.logs'))->name('logs');
     Route::get('/users', [UserController::class, 'index'])->name('users');
@@ -38,7 +38,7 @@ Route::middleware(['auth', 'role:superadmin', 'verified', 'twofactor'])->group(f
     Route::post('/users/{user}/unarchive', [UserController::class, 'unarchive'])->name('users.unarchive');
 });
 
-// 🟣 REGIONAL DPSC Routes
+// REGIONAL DPSC Routes
 Route::middleware(['auth', 'role:Regional DPSC', 'verified', 'twofactor'])->group(function () {
     Route::get('/Regional/VerifiedFETS', [FetsController::class, 'showVerifiedRegional'])->name('Regional.VerifiedFETS'); // ✅ FIXED
     Route::get('/Regional/ApprovedFETS', [FetsController::class, 'showForApproval'])->name('Regional.ApprovedFETS');
@@ -46,7 +46,7 @@ Route::middleware(['auth', 'role:Regional DPSC', 'verified', 'twofactor'])->grou
     Route::patch('/Regional/FETSrequest/{id}/approve', [FetsController::class, 'approve'])->name('fets.approve');
 });
 
-// 🟡 PROVINCIAL DPSC Routes
+// PROVINCIAL DPSC Routes
 Route::middleware(['auth', 'role:Provincial DPSC', 'verified', 'twofactor'])->group(function () {
     Route::get('/FETSrequest', [FetsController::class, 'reviewSubmitted'])->name('Provincial.FETSrequest');
     Route::patch('/FETSrequest/{id}/verify', [FetsController::class, 'verify'])->name('fets.verify');
@@ -55,7 +55,7 @@ Route::middleware(['auth', 'role:Provincial DPSC', 'verified', 'twofactor'])->gr
     Route::get('/MyInventory', [InventoryController::class, 'showMyInventory'])->name('Provincial.MyInventory');
 });
 
-// 📦 Inventory Management (All Roles)
+// Inventory Management (All Roles)
 Route::middleware(['auth', 'verified', 'twofactor'])->group(function () {
     Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
     // Show the form to upload a new CSV file containing inventory data

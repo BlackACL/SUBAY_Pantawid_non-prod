@@ -257,7 +257,8 @@ public function generate(Request $request)
         return redirect()->route('fets.select')->with([
             'success' => 'FETS submitted and PDF generated.',
             'fets_id' => $fets->id,
-            'fets_file_url' => route('fets.download', ['id' => $fets->id]),
+            'fets_preview_url' => route('fets.preview', ['id' => $fets->id]),
+            'fets_download_url' => route('fets.download', ['id' => $fets->id]),
         ]);
     }
 

@@ -24,7 +24,7 @@ class InventoryController extends Controller
         // Determine if we should filter by receiver
         $showAll = $request->has('show_all') && $request->get('show_all') == '1';
 
-        if (!$showAll && !in_array($user->access_level, ['Superadmin', 'Regional DPSC', 'Provincial DPSC'])) {
+        if (!$showAll && !in_array($user->access_level, ['Regional DPSC', 'Provincial DPSC'])) {
             $query->where('RECEIVER', $user->fullname);
         }
 
@@ -53,31 +53,55 @@ class InventoryController extends Controller
         $role = $user->access_level;
         $fullname = $user->fullname;
 
+        // Log who is accessing the page
+        Log::info("MyInventory accessed by: {$fullname} ({$role})");
+
+        // Checkbox flag
         $showAll = $request->input('show_all') === '1';
+        Log::info("Show all flag: " . ($showAll ? 'YES' : 'NO'));
 
         $query = DB::table('inventory');
 
-        // Show all only if allowed
-        if (($role === 'Regional DPSC' || $role === 'Provincial DPSC') && $showAll) {
-            // No filtering
-        } else {
+        // By default, filter by fullname
+        if (!($showAll && in_array($role, ['Regional DPSC', 'Provincial DPSC']))) {
             $query->where('RECEIVER', $fullname);
+            Log::info("Filtering inventory by RECEIVER = {$fullname}");
+        } else {
+            Log::info("Showing ALL inventory for role: {$role}");
         }
 
+        // Optional filters
         if ($request->filled('receiver')) {
             $query->where('RECEIVER', 'like', '%' . $request->receiver . '%');
+            Log::info("Applied receiver filter: " . $request->receiver);
         }
 
         if ($request->filled('office')) {
             $query->where('OFFICE', 'like', '%' . $request->office . '%');
+            Log::info("Applied office filter: " . $request->office);
         }
 
-        $inventory = $query->orderBy('PROPERTY_NO')->paginate(15)->appends($request->all());
+        $inventory = $query->orderBy('PROPERTY_NO')
+            ->paginate(15)
+            ->appends($request->all());
 
-        $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->pluck('RECEIVER');
-        $offices = DB::table('inventory')->select('OFFICE')->distinct()->pluck('OFFICE');
+        // Log number of results found
+        Log::info("Inventory items retrieved: " . $inventory->total());
 
-        return view('adminDPSC.' . ($role === 'Regional DPSC' ? 'Regional' : 'Provincial') . '.MyInventory', compact('inventory', 'receivers', 'offices', 'showAll'));
+        $receivers = DB::table('inventory')
+            ->select('RECEIVER')
+            ->distinct()
+            ->pluck('RECEIVER');
+
+        $offices = DB::table('inventory')
+            ->select('OFFICE')
+            ->distinct()
+            ->pluck('OFFICE');
+
+        return view(
+            'adminDPSC.' . ($role === 'Regional DPSC' ? 'Regional' : 'Provincial') . '.MyInventory',
+            compact('inventory', 'receivers', 'offices', 'showAll')
+        );
     }
 
 
@@ -104,9 +128,16 @@ class InventoryController extends Controller
             $query->where('OFFICE', 'like', '%' . $request->office . '%');
         }
 
-        if ($request->filled('description')) {
-            $query->where('GENERAL_DESCRIPTION', 'like', '%' . $request->description . '%');
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('GENERAL_DESCRIPTION', 'like', "%{$search}%")
+                ->orWhere('SERIAL_NO', 'like', "%{$search}%")
+                ->orWhere('PROPERTY_NO', 'like', "%{$search}%");
+            });
         }
+
+        
 
         $inventory = $query->orderBy('PROPERTY_NO')->paginate(15)->appends($request->all());
 
@@ -116,12 +147,53 @@ class InventoryController extends Controller
         return view('inventory', compact('inventory', 'receivers', 'offices'));
     }
 
+    public function select(Request $request)
+    {
+        $user = auth()->user();
+
+        $query = DB::table('inventory')
+            ->where('RECEIVER', $user->fullname); // Default: user’s own inventory
+
+        // Search filter
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('GENERAL_DESCRIPTION', 'like', "%{$search}%")
+                ->orWhere('SERIAL_NO', 'like', "%{$search}%")
+                ->orWhere('PROPERTY_NO', 'like', "%{$search}%");
+            });
+        }
+
+        // Per page
+        $perPage = $request->get('per_page', session('per_page', 10));
+        session(['per_page' => $perPage]);
+
+        // Paginate filtered results
+        $inventory = $query->orderBy('PROPERTY_NO')
+            ->paginate($perPage)
+            ->appends($request->query());
+
+        $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->pluck('RECEIVER');
+        $allEquipment = DB::table('inventory')->get();
+        $inProcessPropertyNos = DB::table('fets_requests')
+            ->where('status', 'in process')
+            ->pluck('property_no')
+            ->toArray();
+
+        return view('FETS', compact(
+            'inventory',
+            'receivers',
+            'allEquipment',
+            'inProcessPropertyNos'
+        ));
+    }
+
 
     public function showUploadForm()
     {
         $user = Auth::user();
 
-        if (!in_array($user->access_level, ['Superadmin', 'Regional DPSC', 'Provincial DPSC'])) {
+        if (!in_array($user->access_level, ['Regional DPSC', 'Provincial DPSC'])) {
             abort(403, 'Unauthorized.');
         }
 
@@ -132,7 +204,7 @@ class InventoryController extends Controller
     {
         $user = Auth::user();
 
-        if (!in_array($user->access_level, ['Superadmin', 'Regional DPSC', 'Provincial DPSC'])) {
+        if (!in_array($user->access_level, ['Regional DPSC', 'Provincial DPSC'])) {
             abort(403, 'Unauthorized.');
         }
 
