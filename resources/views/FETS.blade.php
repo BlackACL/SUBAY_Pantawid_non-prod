@@ -113,50 +113,50 @@
         
             {{-- FETS SUBMISSION FORM --}}
                 {{-- Inventory Table --}}
-                <div class="mb-4">
-                    <label class="block font-medium text-sm text-gray-700">Select Equipment (max 5)</label>
-                    <table class="w-full table-auto text-sm border">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                {{-- Show All dropdown moved here --}}
-                                <th class="p-2">
-                                    <form method="GET" action="{{ route('fets.select') }}">
-                                        <select name="per_page" onchange="this.form.submit()" class="border rounded p-1 text-sm w-24">
+                    <div class="mb-4">
+                        <label class="block font-medium text-sm text-gray-700">Select Equipment (max 5)</label>
+                        <table class="w-full table-auto text-sm border">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    {{-- Show All dropdown now bound to filterForm (GET) --}}
+                                    <th class="p-2">
+                                        <select name="per_page"
+                                                form="filterForm"
+                                                class="border rounded p-1 text-sm w-24">
                                             <option value="10" {{ (request('per_page') ?? session('per_page', 10)) == 10 ? 'selected' : '' }}>Show 10</option>
                                             <option value="20" {{ (request('per_page') ?? session('per_page', 10)) == 20 ? 'selected' : '' }}>Show 20</option>
                                             <option value="50" {{ (request('per_page') ?? session('per_page', 10)) == 50 ? 'selected' : '' }}>Show 50</option>
                                             <option value="{{ $allEquipment->count() }}" {{ (request('per_page') ?? session('per_page', 10)) == $allEquipment->count() ? 'selected' : '' }}>Show All</option>
                                         </select>
-                                    </form>
-                                </th>
-                                <th class="p-2">Property No</th>
-                                <th class="p-2">Description</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($inventory as $item)
-                                @php
-                                    $disabled = in_array($item->PROPERTY_NO, $inProcessPropertyNos ?? []);
-                                @endphp
-                                <tr class="{{ $disabled ? 'bg-gray-100 text-gray-500 italic' : 'transition duration-150 ease-in-out' }}">
-                                    <td class="p-2 text-center">
-                                        @if ($disabled)
-                                            <span class="text-xs">FETS in Process</span>
-                                        @else
-                                            <input type="checkbox" name="selected[]" value="{{ $item->PROPERTY_NO }}"
-                                                class="select-checkbox">
-                                        @endif
-                                    </td>
-                                    <td class="p-2 text-center">{{ $item->PROPERTY_NO }}</td>
-                                    <td class="p-2 text-center">{{ $item->GENERAL_DESCRIPTION }}</td>
+                                    </th>
+                                    <th class="p-2">Property No</th>
+                                    <th class="p-2">Description</th>
                                 </tr>
-                            @empty
-                                <tr><td colspan="3" class="text-center p-2">No equipment available</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                    <div class="mt-2">{{ $inventory->links() }}</div>
-                </div>
+                            </thead>
+                            <tbody>
+                                @forelse ($inventory as $item)
+                                    @php
+                                        $disabled = in_array($item->PROPERTY_NO, $inProcessPropertyNos ?? []);
+                                    @endphp
+                                    <tr class="{{ $disabled ? 'bg-gray-100 text-gray-500 italic' : 'transition duration-150 ease-in-out' }}">
+                                        <td class="p-2 text-center">
+                                            @if ($disabled)
+                                                <span class="text-xs">FETS in Process</span>
+                                            @else
+                                                <input type="checkbox" name="selected[]" value="{{ $item->PROPERTY_NO }}"
+                                                    class="select-checkbox">
+                                            @endif
+                                        </td>
+                                        <td class="p-2 text-center">{{ $item->PROPERTY_NO }}</td>
+                                        <td class="p-2 text-center">{{ $item->GENERAL_DESCRIPTION }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="3" class="text-center p-2">No equipment available</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    {{--    <div class="mt-2">{{ $inventory->links() }}</div>   --}}
+                    </div>
 
                 {{-- Submit --}}
                 <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm">
@@ -206,8 +206,17 @@
     </script>
 
     <script>
-        document.getElementById('filterForm').addEventListener('submit', function() {
+        function updateHiddenReceiver() {
             document.getElementById('hidden_receiver').value = document.getElementById('to_receiver').value;
+        }
+
+        // Always update hidden field when submitting filterForm
+        document.getElementById('filterForm').addEventListener('submit', updateHiddenReceiver);
+
+        // Handle per_page dropdown changes
+        document.querySelector('[name="per_page"]').addEventListener('change', function() {
+            updateHiddenReceiver();
+            document.getElementById('filterForm').submit();
         });
     </script>
 

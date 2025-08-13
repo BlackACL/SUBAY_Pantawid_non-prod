@@ -16,34 +16,46 @@ use Illuminate\Support\Facades\Log;
 class FetsController extends Controller
 {
 public function select(Request $request)
-    {
-        $user = auth()->user();
+{
+    $user = auth()->user();
 
-        $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->pluck('RECEIVER');
-        $allEquipment = DB::table('inventory')->select('PROPERTY_NO', 'GENERAL_DESCRIPTION')->get();
+    $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->pluck('RECEIVER');
+    $allEquipment = DB::table('inventory')->select('PROPERTY_NO', 'GENERAL_DESCRIPTION')->get();
 
-        $inProcessPropertyNos = FetsDocument::whereIn('status', ['submitted', 'verified', 'approved']) // ✅ EXCLUDE rejected
-            ->pluck('property_no')
-            ->flatMap(function ($propertyNos) {
-                return array_map('trim', explode(',', $propertyNos));
-            })
-            ->unique()
-            ->toArray();
+    $inProcessPropertyNos = FetsDocument::whereIn('status', ['submitted', 'verified', 'approved']) // ✅ EXCLUDE rejected
+        ->pluck('property_no')
+        ->flatMap(function ($propertyNos) {
+            return array_map('trim', explode(',', $propertyNos));
+        })
+        ->unique()
+        ->toArray();
 
+    $perPage = $request->input('per_page', session('per_page', 10));
+    session(['per_page' => $perPage]);
 
-        $perPage = $request->input('per_page', session('per_page', 10));
-        session(['per_page' => $perPage]);
+    $inventory = DB::table('inventory');
 
-        $inventory = DB::table('inventory')
-            ->where('RECEIVER', $user->fullname)
-            ->when($request->filled('description'), fn($q) =>
-                $q->where('GENERAL_DESCRIPTION', 'like', '%' . $request->description . '%'))
-            ->orderBy('PROPERTY_NO')
-            ->paginate($perPage)
-            ->appends($request->except('page'));
-
-        return view('FETS', compact('receivers', 'allEquipment', 'inventory', 'inProcessPropertyNos'));
+    // If a receiver is chosen, filter by it
+    if ($request->filled('to_receiver')) {
+        $inventory->where('RECEIVER', $request->input('to_receiver'));
     }
+    // If no receiver and NOT "Show All", show only the current user's inventory
+    elseif ($perPage != $allEquipment->count()) {
+        $inventory->where('RECEIVER', $user->fullname);
+    }
+    // else: Show All (no where clause applied for receiver)
+
+    // Search by description if provided
+    if ($request->filled('description')) {
+        $inventory->where('GENERAL_DESCRIPTION', 'like', '%' . $request->description . '%');
+    }
+
+    $inventory = $inventory->orderBy('PROPERTY_NO')
+        ->paginate($perPage)
+        ->appends($request->except('page'));
+
+    return view('FETS', compact('receivers', 'allEquipment', 'inventory', 'inProcessPropertyNos'));
+}
 
 
 public function generate(Request $request)
