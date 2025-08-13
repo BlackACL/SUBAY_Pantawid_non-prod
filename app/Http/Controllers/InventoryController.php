@@ -205,74 +205,79 @@ class InventoryController extends Controller
         return view('inventory.upload');
     }
 
-    public function upload(Request $request)
-    {
-        $user = Auth::user();
+public function upload(Request $request)
+{
+    $user = Auth::user();
 
-        if (!in_array($user->access_level, ['Regional DPSC', 'Provincial DPSC'])) {
-            abort(403, 'Unauthorized.');
-        }
-
-        $request->validate([
-            'csv_file' => 'required|mimes:csv,txt|max:10240',
-        ]);
-
-        $path = $request->file('csv_file')->getRealPath();
-        $handle = fopen($path, 'r');
-
-        if (!$handle) {
-            return back()->with('error', 'Unable to open file.');
-        }
-
-        $originalHeader = fgetcsv($handle);
-        if (isset($originalHeader[0])) {
-            $originalHeader[0] = preg_replace('/^\xEF\xBB\xBF/', '', $originalHeader[0]); // Strip UTF-8 BOM
-        }
-
-        $normalizedHeader = array_map(function ($col) {
-            $col = trim($col);
-            $col = preg_replace('/[^A-Z0-9]/i', '_', $col);
-            $col = preg_replace('/_+/', '_', $col);
-            return trim(strtoupper($col), '_');
-        }, $originalHeader);
-
-        DB::table('inventory')->truncate();
-
-        $insertData = [];
-        $rowCount = 0;
-        $now = now();
-
-        while (($row = fgetcsv($handle)) !== false) {
-            $row = array_map(fn($v) => mb_convert_encoding($v, 'UTF-8', mb_detect_encoding($v, 'UTF-8, ISO-8859-1, ISO-8859-15', true)), $row);
-            $data = array_combine($normalizedHeader, $row);
-            $data = array_map(fn($v) => trim(preg_replace('/\s+/', ' ', $v)), $data); // Normalize and trim all values
-            $data['created_at'] = $now;
-            $data['updated_at'] = $now;
-            $insertData[] = $data;
-
-            // Debug: Log some sample data
-            if ($rowCount < 5) {
-                Log::info("Sample row {$rowCount}: " . json_encode($data));
-            }
-
-            if (count($insertData) >= 1000) {
-                DB::table('inventory')->insert($insertData);
-                $insertData = [];
-            }
-            $rowCount++;
-        }
-
-        fclose($handle);
-        if (!empty($insertData)) {
-            DB::table('inventory')->insert($insertData);
-        }
-
-        // Store uploaded file
-        $file = $request->file('csv_file');
-        $file->storeAs('public/inventory_uploads', 'inventory_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension());
-
-        return redirect()->route('inventory.index')->with('success', "Inventory uploaded successfully! {$rowCount} rows processed.");
+    if (!in_array($user->access_level, ['Regional DPSC', 'Provincial DPSC'])) {
+        abort(403, 'Unauthorized.');
     }
+
+    $request->validate([
+        'csv_file' => 'required|mimes:csv,txt|max:10240',
+    ]);
+
+    $path = $request->file('csv_file')->getRealPath();
+    $handle = fopen($path, 'r');
+
+    if (!$handle) {
+        if ($request->ajax()) {
+            return response()->json(['success' => false, 'message' => 'Unable to open file.'], 500);
+        }
+        return back()->with('error', 'Unable to open file.');
+    }
+
+    $originalHeader = fgetcsv($handle);
+    if (isset($originalHeader[0])) {
+        $originalHeader[0] = preg_replace('/^\xEF\xBB\xBF/', '', $originalHeader[0]); // Strip UTF-8 BOM
+    }
+
+    $normalizedHeader = array_map(function ($col) {
+        $col = trim($col);
+        $col = preg_replace('/[^A-Z0-9]/i', '_', $col);
+        $col = preg_replace('/_+/', '_', $col);
+        return trim(strtoupper($col), '_');
+    }, $originalHeader);
+
+    DB::table('inventory')->truncate();
+
+    $insertData = [];
+    $rowCount = 0;
+    $now = now();
+
+    while (($row = fgetcsv($handle)) !== false) {
+        $row = array_map(fn($v) => mb_convert_encoding($v, 'UTF-8', mb_detect_encoding($v, 'UTF-8, ISO-8859-1, ISO-8859-15', true)), $row);
+        $data = array_combine($normalizedHeader, $row);
+        $data = array_map(fn($v) => trim(preg_replace('/\s+/', ' ', $v)), $data);
+        $data['created_at'] = $now;
+        $data['updated_at'] = $now;
+        $insertData[] = $data;
+
+        if (count($insertData) >= 1000) {
+            DB::table('inventory')->insert($insertData);
+            $insertData = [];
+        }
+        $rowCount++;
+    }
+
+    fclose($handle);
+    if (!empty($insertData)) {
+        DB::table('inventory')->insert($insertData);
+    }
+
+    // Store uploaded file
+    $file = $request->file('csv_file');
+    $file->storeAs('public/inventory_uploads', 'inventory_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension());
+
+    $message = "Inventory uploaded successfully! {$rowCount} rows processed.";
+
+    if ($request->ajax()) {
+        return response()->json(['success' => true, 'message' => $message]);
+    }
+
+    return redirect()->route('inventory.index')->with('success', $message);
+}
+
 
     public function export()
     {
