@@ -264,6 +264,7 @@ public function upload(Request $request)
     if (!empty($insertData)) {
         DB::table('inventory')->insert($insertData);
     }
+    
 
     // Store uploaded file
     $file = $request->file('csv_file');
