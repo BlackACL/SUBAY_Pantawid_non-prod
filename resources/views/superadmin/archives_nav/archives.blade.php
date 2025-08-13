@@ -43,7 +43,6 @@
             </div>
 
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
-                <div class="overflow-x-auto w-full">
                     <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-800">
                         <tr>
