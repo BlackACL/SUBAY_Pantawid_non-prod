@@ -61,7 +61,7 @@
                     <th class="px-4 py-2 border">SERIAL</th>
                     <th class="px-4 py-2 border">RECEIVER</th>
                     <th class="px-4 py-2 border">OFFICE</th>
-                    <th class="px-4 py-2 border">STATUS</th>
+                    <th class="px-4 py-2 border">PURCHASE DATE</th>
                 </tr>
             </thead>
             <tbody>
@@ -72,7 +72,7 @@
                         <td class="border px-4 py-2">{{ $item->SERIAL_NO }}</td>
                         <td class="border px-4 py-2">{{ $item->RECEIVER }}</td>
                         <td class="border px-4 py-2">{{ $item->OFFICE }}</td>
-                        <td class="border px-4 py-2">{{ $item->PROPERTY_STATUS }}</td>
+                        <td class="border px-4 py-2">{{ $item->PAR_NO }}</td>
                     </tr>
                 @empty
                     <tr><td colspan="6" class="text-center py-4">No data found.</td></tr>

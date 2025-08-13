@@ -24,7 +24,7 @@
             {{-- Upload Section --}}
             <div class="bg-white shadow rounded-lg p-8">
                 <h3 class="text-lg font-semibold text-gray-800 mb-4">📤 Upload CSV</h3>
-                <form action="{{ route('inventory.upload.submit') }}" method="POST" enctype="multipart/form-data">
+                <form id="csvUploadForm" action="{{ route('inventory.upload.submit') }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     <div class="mb-6">
                         <label for="csv_file" class="block text-sm font-medium text-gray-700 mb-2">
@@ -32,6 +32,14 @@
                         </label>
                         <input type="file" name="csv_file" id="csv_file" required
                             class="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring focus:ring-blue-300 focus:border-blue-500 text-sm text-gray-700">
+                    </div>
+
+                    {{-- Progress Bar --}}
+                    <div class="mb-4">
+                        <div class="w-full bg-gray-200 rounded-full h-4">
+                            <div id="progressBar" class="bg-blue-600 h-4 rounded-full" style="width: 0%"></div>
+                        </div>
+                        <span id="progressText" class="text-sm text-gray-700 mt-1 block">0%</span>
                     </div>
 
                     <div class="flex justify-end">
@@ -57,4 +65,46 @@
 
         </div>
     </div>
+
+    {{-- AJAX & Progress Script --}}
+    <script>
+    document.getElementById('csvUploadForm').addEventListener('submit', function(e) {
+        e.preventDefault(); // prevent normal form submission
+
+        const form = e.target;
+        const formData = new FormData(form);
+        const xhr = new XMLHttpRequest();
+
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+
+        xhr.upload.addEventListener('progress', function(e) {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                progressBar.style.width = percent + '%';
+                progressText.textContent = percent + '%';
+            }
+        });
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    alert(response.message || 'Upload completed!');
+                    progressBar.style.width = '0%';
+                    progressText.textContent = '0%';
+                    form.reset();
+                } else {
+                    alert('Upload failed. Please try again.');
+                    progressBar.style.width = '0%';
+                    progressText.textContent = '0%';
+                }
+            }
+        };
+
+        xhr.open('POST', form.action);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.send(formData);
+    });
+    </script>
 </x-app-layout>
