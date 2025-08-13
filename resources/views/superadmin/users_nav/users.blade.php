@@ -15,7 +15,7 @@
     @endif
 
     <div class="py-12" id="main-content">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-9xl mx-auto sm:px-6 lg:px-8">
 
             <div class="flex justify-between items-center mt-4 mb-4">
                 <!-- Search Filter -->
@@ -53,12 +53,13 @@
                 </div>
             </div>
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
-                <table class="min-w-full divide-y divide-gray-200">
+                <div class="overflow-x-auto w-full">
+                    <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-blue-900">
                         <tr>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Company ID</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Full Name</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Office</th>
+                            <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Full Name</th>
+                            <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Office</th>
                             <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Action</th>
                         </tr>
                     </thead>
@@ -66,12 +67,12 @@
                         @foreach ($users as $user)
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap">{{ $user->company_id }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4 text-center whitespace-nowrap">
                                 <button onclick="openUserProfile({{ $user->id }})" class="text-black hover:text-blue-800 hover:underline font-medium cursor-pointer">
                                     {{ $user->fullname }}
                                 </button>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ $user->office }}</td>
+                            <td class="px-6 py-4 text-center whitespace-nowrap">{{ $user->office }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 <button onclick="openArchiveModal({{ $user->id }}, '{{ $user->fullname }}')" class="bg-red-700 hover:bg-red-800 text-white font-bold py-1 px-4 rounded">Archive</button>
                             </td>
