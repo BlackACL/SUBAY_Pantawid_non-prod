@@ -17,6 +17,15 @@ class FetsVerifyController extends Controller
         //     abort(403);
         // }
 
+         activity()
+        ->causedBy(auth()->user()) // who did the action
+        ->performedOn($fets) // what model was acted on
+        ->withProperties([
+            'document_title' => $fets->title ?? 'No title',
+            'user_name' => auth()->user()->name
+        ])
+        ->log('Viewed FETS document');
+
         return view('provincial.fets.verify', compact('fets'));
     }
 }

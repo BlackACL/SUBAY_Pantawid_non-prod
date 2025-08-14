@@ -105,6 +105,18 @@ class UserController extends Controller
         // Send password to user's email
         $user->notify(new SendPasswordNotification($password));
 
+        // Log activity
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($user)
+            ->withProperties([
+                'user_id' => $user->id,
+                'fullname' => $user->fullname,
+                'email' => $user->email,
+                'access_level' => $user->access_level
+            ])
+            ->log('Added new user');
+
         return redirect()->route('users')->with('success', 'User created successfully and password sent to email.');
     }
 
@@ -154,6 +166,17 @@ class UserController extends Controller
     public function archive(User $user)
     {
         $user->archive();
+        // Log activity
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($user)
+            ->withProperties([
+                'user_id' => $user->id,
+                'fullname' => $user->fullname,
+                'email' => $user->email,
+                'access_level' => $user->access_level
+            ])
+            ->log('Archived user');
         return redirect()->route('users')->with('success', 'User archived successfully');
     }
 

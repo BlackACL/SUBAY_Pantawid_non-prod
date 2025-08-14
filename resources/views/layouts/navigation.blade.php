@@ -18,7 +18,7 @@
                 <div class="shrink-0 flex items-center">
                     @if(Auth::user()->hasRole('superadmin'))
                     
-                    <a href="{{ route('logs') }}">
+                    <a href="{{ route('superadmin.logs_nav.logs') }}">
                         <img src="/images/dswd_logo.png" alt="DSWD Logo" class="block h-9 w-auto" />
                     </a>
                     @elseif(Auth::user()->hasRole('Regional DPSC'))
@@ -39,7 +39,7 @@
                 <!-- Navigation Links -->
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                     @if(Auth::user()->hasRole('superadmin'))
-                    <x-nav-link :href="route('logs')" :active="request()->routeIs('logs')">
+                    <x-nav-link :href="route('superadmin.logs_nav.logs')" :active="request()->routeIs('superadmin.logs_nav.logs')">
                         {{ __('Logs') }}
                     </x-nav-link>
                     <x-nav-link :href="route('users')" :active="request()->routeIs('users')">
@@ -133,7 +133,7 @@
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
             @if(Auth::user()->hasRole('superadmin'))
-            <x-nav-link :href="route('logs')" :active="request()->routeIs('logs')">
+            <x-nav-link :href="route('superadmin.logs_nav.logs')" :active="request()->routeIs('superadmin.logs_nav.logs')">
                 {{ __('Logs') }}
             </x-nav-link>
             <x-nav-link :href="route('users')" :active="request()->routeIs('users')">

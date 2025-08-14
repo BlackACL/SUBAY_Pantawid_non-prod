@@ -268,6 +268,18 @@ public function generate(Request $request)
             'status' => 'submitted',
         ]);
 
+        // Spatie activity log for submitted FETS
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($fets)
+            ->withProperties([
+                'fets_no' => $fetsNo,
+                'property_no' => implode(',', $validated['selected']),
+                'to_receiver' => $toPerson,
+                'remarks' => $remarks
+            ])
+            ->log('Submitted FETS');
+
         \App\Models\FetsLog::create([
             'fets_no'     => $fetsNo,
             'property_no' => implode(',', $validated['selected']),
@@ -547,6 +559,16 @@ public function verify($id)
         'remarks' => 'FETS verified by DPSC',
     ]);
 
+    // Spatie activity log
+    activity()
+        ->causedBy(auth()->user())
+        ->performedOn($fets)
+        ->withProperties([
+            'fets_no' => $fets->fets_no,
+            'property_no' => $fets->property_no
+        ])
+        ->log('Verified FETS');
+
     return back()->with('success', 'FETS document verified successfully.');
 }
 
@@ -593,7 +615,6 @@ public function approve($id)
 
     return back()->with('success', 'FETS document approved successfully.');
 }
-
 
 
 
