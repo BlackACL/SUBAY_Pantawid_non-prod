@@ -10,10 +10,10 @@
             <div class="text-gray-900">
                 <div class="relative overflow-x-auto">
                     <form method="GET" action="{{ route('superadmin.logs_nav.logs') }}" id="logs-filter-form"
-                          class="flex flex-wrap items-center justify-between mb-6 bg-white p-4 rounded-xl shadow-lg
+                          class="flex flex-wrap items-center justify-between mb-3
                                  gap-4 md:gap-0 md:flex-row flex-col">
                         <div class="flex items-center gap-0 flex-wrap w-full md:w-auto">
-                            <div class="relative w-full md:w-72">
+                            <div class="relative w-full md:w-72 mt-4">
                                 <input
                                     type="text"
                                     name="search"
@@ -21,7 +21,7 @@
                                     placeholder="Search user/email/IP address..."
                                     id="search-input"
                                     autocomplete="off"
-                                    class="border-2 border-[#274C77] rounded-full pl-10 pr-10 py-2 text-sm text-left focus:ring-2 focus:ring-[#274C77] focus:outline-none transition w-full bg-[#F8FAFC] shadow placeholder-gray-400"
+                                    class="border-2 border-[#274C77] rounded-full pl-10 pr-10  text-sm text-left focus:ring-2 focus:ring-[#274C77] focus:outline-none transition w-full bg-[#F8FAFC] shadow placeholder-gray-400"
                                     
                                 >
                                 <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#274C77] pointer-events-none text-base">
@@ -44,48 +44,38 @@
                                 <div class="flex flex-col">
                                     <label for="date-range-filter" class="text-xs font-semibold text-[#274C77] mb-1">Date Range</label>
                                     <select name="date_range" id="date-range-filter"
-                                        class="border-2 border-[#274C77] rounded-full px-6 py-2 text-xs focus:ring-2 focus:ring-[#274C77] focus:outline-none transition w-full md:w-auto bg-white shadow appearance-none pr-10 font-medium text-[#274C77] hover:bg-[#F1F5F9]">
+                                        class="border-2 border-[#274C77] rounded-full px-6 py-2 text-xs font-semibold focus:ring-2 focus:ring-[#274C77] focus:outline-none transition w-full md:w-auto bg-white shadow appearance-none pr-10 text-[#274C77] hover:bg-[#F1F5F9]">
                                         <option value="">All Dates</option>
-                                        <option value="today" {{ request('date_range') == 'today' ? 'selected' : '' }}>Today
-                                        </option>
-                                        <option value="yesterday" {{ request('date_range') == 'yesterday' ? 'selected' : '' }}>
-                                            Yesterday
-                                        </option>
-                                        <option value="last_7_days" {{ request('date_range') == 'last_7_days' ? 'selected' : '' }}>
-                                            Last 7 Days
-                                        </option>
-                                        <option value="last_30_days" {{ request('date_range') == 'last_30_days' ? 'selected' : '' }}>
-                                            Last 30 Days
-                                        </option>
-                                        <option value="this_month" {{ request('date_range') == 'this_month' ? 'selected' : '' }}>
-                                            This Month
-                                        </option>
-                                        <option value="custom" {{ request('date_range') == 'custom' ? 'selected' : '' }}>Custom
-                                            Range
-                                        </option>
+                                        <option value="today" {{ request('date_range') == 'today' ? 'selected' : '' }}>Today</option>
+                                        <option value="yesterday" {{ request('date_range') == 'yesterday' ? 'selected' : '' }}>Yesterday</option>
+                                        <option value="last_7_days" {{ request('date_range') == 'last_7_days' ? 'selected' : '' }}>Last 7 Days</option>
+                                        <option value="last_30_days" {{ request('date_range') == 'last_30_days' ? 'selected' : '' }}>Last 30 Days</option>
+                                        <option value="this_month" {{ request('date_range') == 'this_month' ? 'selected' : '' }}>This Month</option>
+                                        <option value="custom" {{ request('date_range') == 'custom' ? 'selected' : '' }}>Custom Range</option>
                                     </select>
-                                </div>
-                                <div class="flex flex-col" id="custom-date-range"
-                                     style="{{ request('date_range') == 'custom' ? '' : 'display:none;' }}">
-                                    <label for="date-from-filter" class="text-xs font-semibold text-[#274C77] mb-1">From</label>
-                                    <input
-                                        type="date"
-                                        name="date_from"
-                                        id="date-from-filter"
-                                        value="{{ request('date_from') }}"
-                                        class="border-2 border-[#274C77] rounded-full px-4 py-2 text-xs focus:ring-2 focus:ring-[#274C77] focus:outline-none transition w-full md:w-auto bg-white shadow font-medium text-[#274C77] hover:bg-[#F1F5F9]"
-                                    >
-                                </div>
-                                <div class="flex flex-col" id="custom-date-range-to"
-                                     style="{{ request('date_range') == 'custom' ? '' : 'display:none;' }}">
-                                    <label for="date-to-filter" class="text-xs font-semibold text-[#274C77] mb-1">To</label>
-                                    <input
-                                        type="date"
-                                        name="date_to"
-                                        id="date-to-filter"
-                                        value="{{ request('date_to') }}"
-                                        class="border-2 border-[#274C77] rounded-full px-4 py-2 text-xs focus:ring-2 focus:ring-[#274C77] focus:outline-none transition w-full md:w-auto bg-white shadow font-medium text-[#274C77] hover:bg-[#F1F5F9]"
-                                    >
+                                    <div id="custom-date-range" class="flex flex-row gap-2 mt-2 transition-all duration-300"
+                                         style="{{ request('date_range') == 'custom' ? '' : 'display:none;' }}">
+                                        <div class="flex flex-col w-36 min-w-[120px]">
+                                            <label for="date-from-filter" class="text-xs text-[#274C77] mb-1">From</label>
+                                            <input
+                                                type="date"
+                                                name="date_from"
+                                                id="date-from-filter"
+                                                value="{{ request('date_from') }}"
+                                                class="border-2 border-[#274C77] rounded-full px-4 py-2 text-xs font-semibold focus:ring-2 focus:ring-[#274C77] focus:outline-none transition bg-white shadow text-[#274C77] hover:bg-[#F1F5F9] {{ request('date_range') == 'custom' ? 'ring-2 ring-[#274C77] bg-[#E3EAF3]' : '' }}"
+                                            >
+                                        </div>
+                                        <div class="flex flex-col w-36 min-w-[120px]">
+                                            <label for="date-to-filter" class="text-xs text-[#274C77] mb-1">To</label>
+                                            <input
+                                                type="date"
+                                                name="date_to"
+                                                id="date-to-filter"
+                                                value="{{ request('date_to') }}"
+                                                class="border-2 border-[#274C77] rounded-full px-4 py-2 text-xs font-semibold focus:ring-2 focus:ring-[#274C77] focus:outline-none transition bg-white shadow text-[#274C77] hover:bg-[#F1F5F9] {{ request('date_range') == 'custom' ? 'ring-2 ring-[#274C77] bg-[#E3EAF3]' : '' }}"
+                                            >
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="flex flex-col">
                                     <label for="role-filter" class="text-xs font-semibold text-[#274C77] mb-1">Role</label>
@@ -139,7 +129,7 @@
                                     class="border border-[#274C77] rounded-full bg-white hover:bg-[#E3EAF3] text-[#274C77] shadow transition flex items-center gap-2 px-3 font-semibold text-xs mb-1"
                                     style="height:32px; min-width:0; align-self:end;"
                                     title="Clear all filters">
-                                    <i class="fas fa-x text-base"></i>
+                                    <i class="fas fa-x text-base text-red-500"></i>
                                     <span class="hidden md:inline">Clear Filters</span>
                                 </button>
                             </div>
@@ -159,7 +149,7 @@
                             </thead>
                             <tbody>
                             @forelse($activities as $activity)
-                                <tr class="border-b {{ $loop->even ? 'bg-[#F8F9FA]' : 'bg-white' }} text-black shadow-sm text-sm hover:bg-[#E3EAF3] transition">
+                                <tr class="border-b {{ $loop->even ? 'bg-[#F8F9FA]' : 'bg-white' }} text-black shadow-sm text-md hover:bg-[#E3EAF3] transition">
                                     <td class="px-6 py-4 align-middle">
                                         <span class="font-medium">{{ \Carbon\Carbon::parse($activity->created_at)->format('m-d-Y') }}</span><br>
                                         <span class="text-xs text-gray-500">{{ \Carbon\Carbon::parse($activity->created_at)->format('h:i A') }}</span>
@@ -192,7 +182,7 @@
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 align-middle">
-                                        <span class="bg-gray-100 px-2 py-1 rounded text-xs">{{ $activity->properties['ip'] ?? 'N/A' }}</span>
+                                        <span class="bg-gray-100 px-2 py-1 rounded text-sm">{{ $activity->properties['ip'] ?? 'N/A' }}</span>
                                     </td>
                                     <!-- <td class="px-6 py-4 align-middle">
                                         {{ $activity->properties['device'] ?? 'N/A' }}
@@ -200,13 +190,13 @@
                                     <td class="px-6 py-4 align-middle">
                                         @php
                                             $activityText = $activity->description;
-                                            $iconClass = 'far fa-file text-gray-300'; // Default subtle icon
+                                            $iconClass = 'far fa-file text-gray-300'; 
                                             $lowerText = strtolower($activityText);
 
-                                            if (str_contains($lowerText, 'login')) {
-                                                $iconClass = 'fas fa-sign-in-alt text-green-400'; // Log in (arrow into box)
-                                            } elseif (str_contains($lowerText, 'logout')) {
-                                                $iconClass = 'fas fa-sign-out-alt text-red-400'; // Log out (arrow out of box)
+                                            if (str_contains($lowerText, 'logged in')) {
+                                                $iconClass = 'fa-solid fa-sign-in text-green-400'; // Log in (arrow into box)
+                                            } elseif (str_contains($lowerText, 'logged out')) {
+                                                $iconClass = 'fa-solid fa-sign-out text-red-400'; // Log out (arrow out of box)
                                             } elseif (str_contains($lowerText, 'added')) {
                                                 $iconClass = 'far fa-user text-blue-300';
                                             } elseif (str_contains($lowerText, 'submitted')) {
@@ -273,8 +263,18 @@
         document.getElementById('activity-filter').addEventListener('change', fetchLogs);
         document.getElementById('date-range-filter').addEventListener('change', function() {
             var customRange = this.value === 'custom';
-            document.getElementById('custom-date-range').style.display = customRange ? '' : 'none';
-            document.getElementById('custom-date-range-to').style.display = customRange ? '' : 'none';
+            var customDateRange = document.getElementById('custom-date-range');
+            if (customRange) {
+                customDateRange.style.display = 'flex';
+                customDateRange.classList.add('bg-[#F8FAFC]', 'p-2', 'rounded-lg', 'border', 'border-[#E3EAF3]');
+                customDateRange.style.flexWrap = 'wrap';
+                customDateRange.style.alignItems = 'center';
+            } else {
+                customDateRange.style.display = 'none';
+                customDateRange.classList.remove('bg-[#F8FAFC]', 'p-2', 'rounded-lg', 'border', 'border-[#E3EAF3]');
+                customDateRange.style.flexWrap = '';
+                customDateRange.style.alignItems = '';
+            }
             fetchLogs();
         });
         document.getElementById('search-input').addEventListener('input', function() {
@@ -283,6 +283,12 @@
             window.liveSearchTimeout = setTimeout(fetchLogs, 400);
             document.getElementById('search-clear-btn').style.display = this.value ? 'inline' : 'none';
         });
+        document.getElementById('search-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                fetchLogs();
+            }
+        });
         document.getElementById('search-clear-btn').addEventListener('click', function() {
             var input = document.getElementById('search-input');
             input.value = '';
@@ -290,8 +296,9 @@
             fetchLogs();
         });
         document.getElementById('clear-filters-btn').addEventListener('click', function() {
-            document.getElementById('search-input').value = '';
-            document.getElementById('search-clear-btn').style.display = 'none';
+            // Do not clear search input
+            // document.getElementById('search-input').value = '';
+            // document.getElementById('search-clear-btn').style.display = 'none';
             document.getElementById('date-range-filter').selectedIndex = 0;
             document.getElementById('role-filter').selectedIndex = 0;
             document.getElementById('activity-filter').selectedIndex = 0;
