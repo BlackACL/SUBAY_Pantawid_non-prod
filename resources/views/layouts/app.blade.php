@@ -19,7 +19,10 @@
 
     <body class="font-sans antialiased">
         <div class="min-h-screen bg-gray-100">
-            @include('layouts.navigation')
+            {{-- ✅ Show navbar only if NOT in embedded pages --}} 
+            @if (!in_array(Route::currentRouteName(), ['fets.select.embed', 'fets.submitted.embed']))
+                @include('layouts.navigation')
+            @endif
 
             <!-- Page Heading -->
             @if (isset($header))

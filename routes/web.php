@@ -88,4 +88,14 @@ Route::get('/fets/view/{id}', [FetsController::class, 'preview'])->name('fets.vi
 
 
 
+Route::middleware(['auth','verified','twofactor'])->group(function () {
+    Route::get('/FETS/embed', [FetsController::class, 'selectEmbed'])->name('fets.select.embed');
+    Route::get('/SubmittedFETS/embed', [FetsController::class, 'submittedEmbed'])->name('fets.submitted.embed');
+});
+
+Route::get('/fets/submittedEmbed', [FetsController::class, 'submittedEmbed'])
+    ->middleware(['auth', 'verified', 'twofactor'])
+    ->name('fets.submittedEmbed');
+
+
 require __DIR__ . '/auth.php';

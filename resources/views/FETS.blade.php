@@ -34,29 +34,29 @@
             @endif
 
             {{-- ✅ Show session error --}}
-    @if(session('error'))
-        <div class="bg-red-100 border border-red-400 text-red-700 p-3 mb-4 rounded">
-            {{ session('error') }}
-        </div>
-    @endif
+                @if(session('error'))
+                    <div class="bg-red-100 border border-red-400 text-red-700 p-3 mb-4 rounded">
+                        {{ session('error') }}
+                    </div>
+                @endif
 
-    {{-- ✅ Show validation errors --}}
-    @if($errors->any())
-        <div class="bg-red-100 border border-red-400 text-red-700 p-3 mb-4 rounded">
-            <ul class="list-disc pl-5">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
+                {{-- ✅ Show validation errors --}}
+                @if($errors->any())
+                    <div class="bg-red-100 border border-red-400 text-red-700 p-3 mb-4 rounded">
+                        <ul class="list-disc pl-5">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
 
             <form method="GET" action="{{ route('fets.select') }}" class="mb-4 flex gap-4 flex-wrap" id="filterForm">
                 {{-- FILTER - moved here --}}
                 <div class="mb-4 flex gap-4 flex-wrap">
                     <input type="text" name="search" value="{{ request('search') }}"
-                        placeholder="Search by Description, Serial No, or Property No..."
-                        class="border-gray-300 rounded-md shadow-sm text-sm p-2 w-96">
+                        placeholder="Search by Description, or Property No..."
+                        class="border-gray-300 rounded-md shadow-sm text-sm p-2 w-72">
 
                     <input type="hidden" name="to_receiver" id="hidden_receiver">
 
@@ -68,9 +68,9 @@
                     </button>
 
                     @if(request('search'))
-                    <a href="{{ route('fets.select') }}"
+                    <a href="{{ route('fets.select', ['to_receiver' => request('to_receiver')]) }}"
                         class="bg-gray-500 hover:bg-gray-600 text-white text-sm px-4 py-2 rounded">
-                        Clear
+                            Clear
                     </a>
                     @endif
                 </div>

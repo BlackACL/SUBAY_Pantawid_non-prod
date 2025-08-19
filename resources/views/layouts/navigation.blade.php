@@ -1,15 +1,5 @@
 <nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
-    <!-- @php
-        if (request()->route('superadmin')) {
-            $navLabel = 'Logs';
-            $navRoute = route('superadmin');
-            $navActive = request()->routeIs('superadmin');
-        } else {
-            $navLabel = 'Inventory';
-            $navRoute = route('Inventory');
-            $navActive = request()->routeIs('Inventory');
-        }
-    @endphp -->
+    
     <!-- Primary Navigation Menu -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
@@ -56,7 +46,10 @@
                         {{ __('Approved FETS') }}
                     </x-nav-link>
                     <x-nav-link :href="route('Regional.MyInventory')" :active="request()->routeIs('Regional.MyInventory')">
-                        {{ __('My Inventory') }}
+                        {{ __('Inventory') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('fets.submittedEmbed')" :active="request()->routeIs('fets.submittedEmbed')">
+                        {{ __('Submitted FETS Request') }}
                     </x-nav-link>
                     <x-nav-link :href="route('inventory.upload')" :active="false">
                         {{ __('Export Inventory') }}
@@ -69,11 +62,14 @@
                         {{ __('Verified FETS') }}
                     </x-nav-link>
                     <x-nav-link :href="route('Provincial.MyInventory')" :active="request()->routeIs('Provincial.MyInventory')">
-                        {{ __('My Inventory') }}
+                        {{ __('Inventory') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('fets.submittedEmbed')" :active="request()->routeIs('fets.submittedEmbed')">
+                        {{ __('Submitted FETS Request') }}
                     </x-nav-link>
                     @else
                     <x-nav-link :href="route('Inventory')" :active="request()->routeIs('Inventory')">
-                        {{ __('Inventory') }}
+                        {{ __('My Inventory') }}
                     </x-nav-link>
                     <x-nav-link :href="route('fets.select')" :active="request()->routeIs('FETS')">
                         {{ __('FETS') }}

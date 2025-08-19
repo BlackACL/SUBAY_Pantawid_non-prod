@@ -35,19 +35,17 @@ public function select(Request $request)
 
     $inventory = DB::table('inventory');
 
-    // If a receiver is chosen, filter by it
-    if ($request->filled('to_receiver')) {
-        $inventory->where('RECEIVER', $request->input('to_receiver'));
-    }
-    // If no receiver and NOT "Show All", show only the current user's inventory
-    elseif ($perPage != $allEquipment->count()) {
-        $inventory->where('RECEIVER', $user->fullname);
-    }
-    // else: Show All (no where clause applied for receiver)
+    // Always show the current user's inventory
+    $inventory->where('RECEIVER', $user->fullname);
 
-    // Search by description if provided
-    if ($request->filled('description')) {
-        $inventory->where('GENERAL_DESCRIPTION', 'like', '%' . $request->description . '%');
+    // Search by description, property no, or serial no
+    if ($request->filled('search')) {
+        $search = $request->search;
+
+        $inventory->where(function ($query) use ($search) {
+            $query->where('GENERAL_DESCRIPTION', 'like', '%' . $search . '%')
+                ->orWhere('PROPERTY_NO', 'like', '%' . $search . '%');
+        });
     }
 
     $inventory = $inventory->orderBy('PROPERTY_NO')
@@ -56,6 +54,63 @@ public function select(Request $request)
 
     return view('FETS', compact('receivers', 'allEquipment', 'inventory', 'inProcessPropertyNos'));
 }
+
+
+public function selectEmbed(Request $request)
+{
+    $user = auth()->user();
+
+    // Get receivers for dropdown
+    $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->pluck('RECEIVER');
+
+    // All equipment for "Show All" option
+    $allEquipment = DB::table('inventory')->select('PROPERTY_NO', 'GENERAL_DESCRIPTION')->get();
+
+    // Prevent selecting items already in process
+    $inProcessPropertyNos = FetsDocument::whereIn('status', ['submitted', 'verified', 'approved'])
+        ->pluck('property_no')
+        ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
+        ->unique()
+        ->toArray();
+
+    // Per page setting
+    $perPage = $request->input('per_page', session('per_page', 10));
+    session(['per_page' => $perPage]);
+
+    // User inventory + search
+    $inventory = DB::table('inventory')
+        ->where('RECEIVER', $user->fullname);
+
+    if ($request->filled('search')) {
+        $search = $request->search;
+        $inventory->where(function ($query) use ($search) {
+            $query->where('GENERAL_DESCRIPTION', 'like', "%{$search}%")
+                  ->orWhere('PROPERTY_NO', 'like', "%{$search}%")
+                  ->orWhere('SERIAL_NO', 'like', "%{$search}%");
+        });
+    }
+
+    $inventory = $inventory->orderBy('PROPERTY_NO')
+        ->paginate($perPage)
+        ->appends($request->except('page'));
+
+    return view('partials.FETS', compact(
+        'receivers', 'allEquipment', 'inventory', 'inProcessPropertyNos'),
+         ['hideNavbar' => true,]);
+}
+
+public function submittedEmbed()
+{
+    $documents = FetsDocument::where('user_id', auth()->id())
+        ->with(['submitter', 'verifier', 'approver'])
+        ->orderByDesc('created_at')
+        ->paginate(10);
+
+    return view('partials.SubmittedFETS', compact('documents'), [
+    'hideNavbar' => true,
+    ]);
+}
+
 
 
 public function generate(Request $request)
@@ -398,7 +453,9 @@ public function generate(Request $request)
     ]);
 
     // after saving $fets
-        return redirect()->route('fets.select')->with([
+    $redirectRoute = $request->has('embed') ? 'fets.select.embed' : 'fets.select';
+
+    return redirect()->route($redirectRoute)->with([
         'success' => 'FETS submitted and PDF generated.',
         'fets_id' => $fets->id,
         'fets_preview_url' => route('fets.preview', ['id' => $fets->id]),

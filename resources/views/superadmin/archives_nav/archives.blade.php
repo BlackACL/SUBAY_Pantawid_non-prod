@@ -12,7 +12,7 @@
     @endif
 
     <div class="py-12" id="main-content">
-        <div class="max-w-9xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-full mx-auto sm:px-6 lg:px-8">
 
             <div class="flex justify-between items-center mt-4 mb-4">
                 <!-- Search Filter -->
@@ -43,12 +43,12 @@
             </div>
 
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
-                    <table class="min-w-full divide-y divide-gray-200">
+                <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-800">
                         <tr>
                             <th scope="col" class="w-48 px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Company ID</th>
-                            <th scope="col" class="w-48 px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Full Name</th>
-                            <th scope="col" class="w-48 px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Office</th>
+                            <th scope="col" class="w-48 px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Full Name</th>
+                            <th scope="col" class="w-48 px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Office</th>
                             <th scope="col" class="w-48 px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Date Archived</th>
                             <!-- Action column if present -->
                         </tr>
@@ -57,12 +57,12 @@
                         @forelse ($archivedUsers as $user)
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap">{{ $user->company_id }}</td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">
+                            <td class="px-6 py-4 whitespace-nowrap">
                                 <button onclick="openUserProfile({{ $user->id }})" class="text-black hover:text-blue-800 hover:underline font-medium cursor-pointer">
                                     {{ $user->fullname }}
                                 </button>
                             </td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">{{ $user->office }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ $user->office }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 {{ $user->archived_at ? $user->archived_at->format('m/d/Y') : '' }}
                             </td>

@@ -54,8 +54,12 @@
                                         </span>
 
                                         @if($doc->status === 'rejected' && $doc->rejected_remarks)
-                                            <div class="mt-1 text-xs text-red-600">
-                                                <strong>Reason:</strong> {{ $doc->rejected_remarks }}
+                                            <div class="mt-1 text-xs">
+                                                <button 
+                                                    class="text-red-600 underline hover:text-red-800 font-medium"
+                                                    @click="$dispatch('open-remarks', { remarks: '{{ addslashes($doc->rejected_remarks) }}' })">
+                                                    View More
+                                                </button>
                                             </div>
                                         @endif
                                     </td>
@@ -141,6 +145,28 @@
                     <button class="text-gray-600 hover:text-gray-800 text-2xl" @click="showModal = false">&times;</button>
                 </div>
                 <iframe :src="pdfUrl" class="w-full h-full" frameborder="0"></iframe>
+            </div>
+        </div>
+        <!-- Remarks Modal -->
+        <div 
+            x-data="{ showRemarks: false, remarks: '' }"
+            x-on:open-remarks.window="showRemarks = true; remarks = $event.detail.remarks"
+            x-show="showRemarks"
+            class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+            style="display: none;"
+            x-transition>
+            
+            <div class="bg-white rounded-lg shadow-lg max-w-lg w-full p-6 relative">
+                <h3 class="text-lg font-semibold text-red-600 mb-4">Rejection Remarks</h3>
+                <p class="text-gray-700 text-sm whitespace-pre-line" x-text="remarks"></p>
+                
+                <div class="mt-6 flex justify-end">
+                    <button 
+                        class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                        @click="showRemarks = false">
+                        Close
+                    </button>
+                </div>
             </div>
         </div>
     </div>

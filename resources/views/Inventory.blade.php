@@ -9,7 +9,7 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white shadow-sm sm:rounded-lg p-6">
 
-                <!-- ✅ User Profile Section -->
+                <!-- User Profile Section -->
                 <div class="flex items-start space-x-6 mb-6">
                     <!-- Avatar -->
                     <div class="flex-shrink-0">
@@ -76,7 +76,7 @@
                 </div>
 
                 <!-- ✅ Label for Inventory -->
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Inventory</h3>
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Inventory</h2>
 
                 <!-- ✅ FILTER FORM -->
                 <form method="GET" action="{{ route(Route::currentRouteName()) }}" class="mb-4 flex flex-wrap items-center gap-4">

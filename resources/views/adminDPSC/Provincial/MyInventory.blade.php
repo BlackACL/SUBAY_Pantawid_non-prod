@@ -1,16 +1,25 @@
 <x-ProvincialAdmin-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('My Inventory') }}
+            {{ __('Inventory') }}
         </h2>
     </x-slot>
 
-    <div class="py-12">
+    <div class="py-12" 
+     x-data="{ showFetsApp: false, showSubmitted: false }"
+     x-effect="
+        if (showFetsApp || showSubmitted) { 
+            document.body.classList.add('overflow-hidden') 
+        } else { 
+            document.body.classList.remove('overflow-hidden') 
+        }
+     ">
+
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
 
-                <!-- ✅ User Profile Section -->
+                <!-- User Profile Section -->
                 <div class="flex items-start space-x-6 mb-6">
                     <!-- Avatar -->
                     <div class="flex-shrink-0">
@@ -76,51 +85,47 @@
                     </div>
                 </div>
 
-                <!-- ✅ Label for Inventory -->
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Inventory</h3>
+                <!-- Label for Inventory -->
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">INVENTORY</h2>
 
-                    <form method="GET" action="{{ route(Route::currentRouteName()) }}" class="mb-4 flex flex-wrap items-center gap-4">
-                        <label class="flex items-center">
-                            <input type="checkbox" name="show_all" value="1" {{ request('show_all') ? 'checked' : '' }}>
-                            <span class="ml-2 text-sm">Show All Equipment</span>
-                        </label>
+                    <div class="mb-4 flex items-center justify-between gap-4">
+                        <!-- Search Form -->
+                        <form method="GET" action="{{ route(Route::currentRouteName()) }}" class="flex items-center gap-3 flex-wrap">
+                            <label class="flex items-center">
+                                <input type="checkbox" name="show_all" value="1" {{ request('show_all') ? 'checked' : '' }}>
+                                <span class="ml-2 text-sm">Show All Equipment</span>
+                            </label>
 
-                        <div>
-                            <input type="text" name="receiver" list="receiver-list" value="{{ request('receiver') }}"
-                                placeholder="Filter by Receiver"
-                                class="border-gray-300 rounded-md shadow-sm text-sm p-2">
-                            <datalist id="receiver-list">
-                                @foreach ($receivers as $receiver)
-                                    <option value="{{ $receiver }}">
-                                @endforeach
-                            </datalist>
+                            <div>
+                                <input type="text" name="search" value="{{ request('search') }}"
+                                    placeholder="Search by Receiver, Description, Serial No, or Property No..."
+                                    class="border-gray-300 rounded-md shadow-sm text-sm p-2 w-96">
+                            </div>
+
+                            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </button>
+
+                            @if(request('search'))
+                            <a href="{{ route(Route::currentRouteName()) }}"
+                                class="bg-gray-500 hover:bg-gray-600 text-white text-sm px-4 py-2 rounded">
+                                Clear
+                            </a>
+                            @endif
+                        </form>
+
+                        <!-- Action Buttons -->
+                        <div class="flex gap-3">
+                            <button 
+                                @click="showFetsApp = true"
+                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow">
+                                FETS Application
+                            </button>
                         </div>
-
-                        <div>
-                            <input type="text" name="office" list="office-list" value="{{ request('office') }}"
-                                placeholder="Filter by Office"
-                                class="border-gray-300 rounded-md shadow-sm text-sm p-2">
-                            <datalist id="office-list">
-                                @foreach ($offices as $office)
-                                    <option value="{{ $office }}">
-                                @endforeach
-                            </datalist>
-                        </div>
-
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                            </svg>
-                        </button>
-
-                        @if(request('search'))
-                        <a href="{{ route(Route::currentRouteName()) }}"
-                            class="bg-gray-500 hover:bg-gray-600 text-white text-sm px-4 py-2 rounded">
-                            Clear
-                        </a>
-                        @endif
-                    </form>
-
+                    </div>
 
                     <div class="overflow-x-auto">
                         <table class="table-auto w-full border text-sm">
@@ -156,6 +161,24 @@
                     </div>
                 </div>
 
+            </div>
+        </div>
+
+        <!-- FETS Application Modal -->
+        <div 
+            x-show="showFetsApp"
+            class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            x-transition
+            style="display:none;">
+            <div class="bg-white rounded-lg w-11/12 max-w-6xl h-[90vh] overflow-hidden shadow-lg">
+                <div class="flex justify-between items-center bg-gray-100 px-4 py-2 border-b">
+                    <h2 class="text-lg font-bold">FETS Application</h2>
+                    <button @click="showFetsApp = false" class="text-gray-600 hover:text-gray-900 text-xl">&times;</button>
+                </div>
+                <div class="p-6 overflow-y-auto h-full">
+                    {{-- Only content, no navbar --}}
+                    <iframe src="{{ route('fets.select.embed') }}" class="w-full h-full" frameborder="0"></iframe>
+                </div>
             </div>
         </div>
     </div>
