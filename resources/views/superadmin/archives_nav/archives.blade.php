@@ -19,7 +19,7 @@
                 <div class="max-w-xs">
                     <form method="GET" action="{{ route('archives') }}" class="flex gap-2">
                         <div class="relative w-64">
-                            <input type="text" name="search" id="searchInput" placeholder="Search by ID or Full Name..." 
+                            <input type="text" name="search" id="searchInput" placeholder="Search by Company ID or Full Name..." 
                                    value="{{ request('search') }}"
                                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
