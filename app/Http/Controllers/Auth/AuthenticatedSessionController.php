@@ -34,6 +34,15 @@ class AuthenticatedSessionController extends Controller
 
         $request->user()->notify(new TwoFactorCodeNotification());
 
+        // Log user login
+        activity()
+            ->causedBy($request->user())
+            ->withProperties([
+                'ip' => $request->ip(),
+                'device' => $request->userAgent(),
+            ])
+            ->log('Logged In');
+
         return redirect()->route('verify');
     }
 
@@ -42,6 +51,17 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        // Log user logout
+        if (auth()->check()) {
+            activity()
+                ->causedBy(auth()->user())
+                ->withProperties([
+                    'ip' => $request->ip(),
+                    'device' => $request->userAgent(),
+                ])
+                ->log('Logged out');
+        }
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();

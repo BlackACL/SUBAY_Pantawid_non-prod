@@ -34,7 +34,7 @@
                     <!-- User Info -->
                     <div>
                         <h2 class="text-2xl font-bold text-gray-900 mb-1">{{ auth()->user()->fullname }}</h2>
-                        <p class="text-gray-600 mb-1">{{ auth()->user()->email }}</p>
+                        <p class="text-gray-600 mb-1">{{ auth()->user()->company_id }}</p>
                         <p class="text-black font-medium mb-4">{{ auth()->user()->access_level }}</p>
                     </div>
                 </div>

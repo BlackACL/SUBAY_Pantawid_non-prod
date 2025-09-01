@@ -9,6 +9,23 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
+/**
+ * Class User
+ *
+ * @mixin \Spatie\Permission\Traits\HasRoles
+ * @method \Illuminate\Support\Collection getRoleNames()
+ * @method \Spatie\Permission\Models\Role|\Spatie\Permission\Models\Permission assignRole(...$roles)
+ * @method bool hasRole(string|array|\Spatie\Permission\Models\Role $roles)
+ * @method bool hasAnyRole(string|array|\Spatie\Permission\Models\Role $roles)
+ * @method bool hasAllRoles(array|\Spatie\Permission\Models\Role ...$roles)
+ * @method \Illuminate\Support\Collection getPermissionNames()
+ * @method bool hasPermissionTo(string|\Spatie\Permission\Models\Permission $permission, string|null $guardName = null)
+ * @method $this givePermissionTo(...$permissions)
+ * @method $this revokePermissionTo(...$permissions)
+ * @method bool hasDirectPermission(string|\Spatie\Permission\Models\Permission $permission)
+ * @mixin IdeHelperUser
+ */
+
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles;

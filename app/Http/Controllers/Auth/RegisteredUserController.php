@@ -47,7 +47,7 @@ class RegisteredUserController extends Controller
             'activated' => ['required', 'string', 'max:255'],
             'locked_status' => ['required', 'string', 'max:255'],
             'deleted_status' => ['required', 'string', 'max:255'],
-            'g-recaptcha-response' => ['required', new Recaptcha]
+            // 'g-recaptcha-response' => ['required', new Recaptcha]
         ]);
 
         $user = User::create([
