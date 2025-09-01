@@ -467,12 +467,15 @@ public function generate(Request $request)
     // after saving $fets
     $redirectRoute = $request->has('embed') ? 'fets.select.embed' : 'fets.select';
 
-    return redirect()->route($redirectRoute)->with([
-        'success' => 'FETS submitted and PDF generated.',
-        'fets_id' => $fets->id,
-        'fets_preview_url' => route('fets.preview', ['id' => $fets->id]),
-        'fets_download_url' => route('fets.download', ['id' => $fets->id]),
-    ]);
+    return redirect()
+        ->route($redirectRoute)
+        ->with([
+            'success' => 'FETS submitted and PDF generated.',
+            'fets_id' => $fets->id,
+            'fets_preview_url' => route('fets.preview', ['id' => $fets->id]),
+            'fets_download_url' => route('fets.download', ['id' => $fets->id]),
+            'hideNavbar' => true, // 👈 Add this
+        ]);
 
 }
 
