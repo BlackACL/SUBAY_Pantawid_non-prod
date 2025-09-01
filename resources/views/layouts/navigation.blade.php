@@ -9,7 +9,7 @@
                     @if(Auth::user()->hasRole('superadmin'))
                     
                     <a href="{{ route('superadmin.logs_nav.logs') }}">
-                        <img src="/images/dswd_logo.png" alt="DSWD Logo" class="block h-9 w-auto" />
+                        <img src="/images/dswd_logo.png" alt="DSWD Logo" class="block h-14 w-auto" />
                     </a>
                     @elseif(Auth::user()->hasRole('Regional DPSC'))
                     <a href="{{ route('Regional.VerifiedFETS') }}">

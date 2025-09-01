@@ -152,6 +152,7 @@
                                 <label for="province" class="block font-medium">Province</label>
                                 <select name="province" id="province" class="w-full border rounded px-3 py-2" required>
                                     <option value="">Select Province</option>
+                                    <option value="DAVAO CITY">DAVAO CITY</option>
                                     <option value="DAVAO DE ORO">DAVAO DE ORO</option>
                                     <option value="DAVAO DEL NORTE">DAVAO DEL NORTE</option>
                                     <option value="DAVAO DEL SUR">DAVAO DEL SUR</option>
@@ -169,7 +170,9 @@
                         <!-- Office -->
                         <div class="mb-4">
                             <label for="office" class="block font-medium">Office</label>
-                            <input type="text" name="office" id="office" class="w-full border rounded px-3 py-2">
+                            <select name="office" id="office" class="w-full border rounded px-3 py-2" required>
+                                <option value="">Select Office</option>
+                            </select>
                         </div>
                         <!-- Employee Status | Company ID -->
                         <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -519,8 +522,9 @@
             }
         });
 
-        // Province-Municipality Filtering Logic
+        // Province → Municipality mapping
         const provinceMunicipalityMap = {
+            "DAVAO CITY": ["Davao City"], // special case: only one municipality
             "DAVAO OCCIDENTAL": [
                 "DON MARCELINO",
                 "JOSE ABAD SANTOS (TRINIDAD)",
@@ -529,35 +533,33 @@
                 "SARANGANI"
             ],
             "DAVAO DE ORO": [
-                "COMPOSTELA",
-                "LAAK (SAN VICENTE)",
-                "MABINI (DOÑA ALICIA)",
-                "MACO",
-                "MARAGUSAN (SAN MARIANO)",
-                "MAWAB",
                 "MONKAYO",
+                "COMPOSTELA",
                 "MONTEVISTA",
-                "NABUNTURAN (Capital)",
                 "NEW BATAAN",
-                "PANTUKAN"
+                "MARAGUSAN (SAN MARIANO)",
+                "NABUNTURAN (Capital)",
+                "MAWAB",
+                "MACO",
+                "PANTUKAN",
+                "MABINI (DOÑA ALICIA)",
+                "LAAK (SAN VICENTE)"
             ],
             "DAVAO DEL NORTE": [
                 "ASUNCION (SAUG)",
                 "BRAULIO E. DUJALI",
                 "CARMEN",
-                "CITY OF PANABO",
-                "CITY OF TAGUM (Capital)",
-                "ISLAND GARDEN CITY OF SAMAL",
                 "KAPALONG",
                 "NEW CORELLA",
                 "SAN ISIDRO",
                 "SANTO TOMAS",
-                "TALAINGOD"
+                "TALAINGOD",
+                "CITY OF TAGUM (Capital)",
+                "CITY OF PANABO",
+                "ISLAND GARDEN CITY OF SAMAL"
             ],
             "DAVAO DEL SUR": [
                 "BANSALAN",
-                "CITY OF DIGOS (Capital)",
-                "DAVAO CITY",
                 "HAGONOY",
                 "KIBLAWAN",
                 "MAGSAYSAY",
@@ -565,6 +567,7 @@
                 "MATANAO",
                 "PADADA",
                 "SANTA CRUZ",
+                "CITY OF DIGOS (Capital)",
                 "SULOP"
             ],
             "DAVAO ORIENTAL": [
@@ -573,33 +576,137 @@
                 "BOSTON",
                 "CARAGA",
                 "CATEEL",
-                "CITY OF MATI (Capital)",
                 "GOVERNOR GENEROSO",
                 "LUPON",
                 "MANAY",
+                "CITY OF MATI (Capital)",
                 "SAN ISIDRO",
                 "TARRAGONA"
             ]
         };
 
+        // Municipality → Offices mapping
+        const officeMap = {
+            // DAVAO CITY
+            "Davao City": [
+                "Paquibato Sub-District",
+                "Talomo A Sub-District",
+                "Talomo B Sub-District",
+                "Toril A Sub-District",
+                "Toril B Sub-District",
+                "Buhangin A Sub-District",
+                "Buhangin B Sub-District",
+                "Poblacion Sub-District",
+                "Agdao Sub-District",
+                "Bunawan Sub-District",
+                "Calinan Sub-District",
+                "Baguio Sub-District",
+                "Tugbok Sub-District",
+                "Marilog Sub-District"
+            ],
+
+            // DAVAO DE ORO
+            "MONKAYO": ["Monkayo Municipal Operations Office"],
+            "COMPOSTELA": ["Compostela Municipal Operation Office"],
+            "MONTEVISTA": ["Montevista Municipal Operations Office"],
+            "NEW BATAAN": ["New Bataan Municipal Operations Office"],
+            "MARAGUSAN (SAN MARIANO)": ["Maragusan Municipal Operations Office"],
+            "NABUNTURAN (Capital)": ["Nabunturan Municipal Operations Office"],
+            "MAWAB": ["Mawab Municipal Operations Office"],
+            "MACO": ["Maco Municipal Operations Office"],
+            "PANTUKAN": ["Pantukan Municipal Operations Office"],
+            "MABINI (DOÑA ALICIA)": ["Mabini Municipal Operations Office"],
+            "LAAK (SAN VICENTE)": ["Laak Municipal Operations Office"],
+
+            // DAVAO ORIENTAL
+            "BAGANGA": ["Baganga Municipal Operations Office"],
+            "BANAYBANAY": ["Banaybanay Municipal Operations Office"],
+            "BOSTON": ["Boston Municipal Operations Office"],
+            "CARAGA": ["Caraga Municipal Operations Office"],
+            "CATEEL": ["Cateel Municipal Operations Office"],
+            "GOVERNOR GENEROSO": ["Governor Generoso Municipal Operations Office"],
+            "LUPON": ["Lupon Municipal Operations Office"],
+            "MANAY": ["Manay Municipal Operations Office"],
+            "CITY OF MATI (Capital)": ["Mati City Operations Office"],
+            "SAN ISIDRO": ["San Isidro Municipal Operations Office"],
+            "TARRAGONA": ["Tarragona Municipal Operations Office"],
+
+            // DAVAO DEL NORTE
+            "ASUNCION (SAUG)": ["Asuncion Municipal Operations Office"],
+            "BRAULIO E. DUJALI": ["Braulio E. Dujali Municipal Operations Office"],
+            "CARMEN": ["Carmen Municipal Operations Office"],
+            "KAPALONG": ["Kapalong Municipal Operations Office"],
+            "NEW CORELLA": ["New Corella Municipal Operations Office"],
+            "SAN ISIDRO": ["San Isidro Municipal Operations Office"],
+            "SANTO TOMAS": ["Santo Tomas Municipal Operations Office"],
+            "TALAINGOD": ["Talaingod Municipal Operations Office"],
+            "CITY OF TAGUM (Capital)": ["Tagum City Operations Office"],
+            "CITY OF PANABO": ["Panabo City Operations Office"],
+            "ISLAND GARDEN CITY OF SAMAL": ["Island Garden City of Samal City Operations Office"],
+
+            // DAVAO OCCIDENTAL
+            "DON MARCELINO": ["Don Marcelino Municipal Operations Office"],
+            "JOSE ABAD SANTOS (TRINIDAD)": ["Jose Abad Santos Municipal Operations Office"],
+            "MALITA": ["Malita Municipal Operations Office"],
+            "SANTA MARIA": ["Santa Maria Municipal Operations Office"],
+            "SARANGANI": ["Sarangani Municipal Operations Office"],
+
+            // DAVAO DEL SUR
+            "BANSALAN": ["Bansalan Municipal Operations Office"],
+            "HAGONOY": ["Hagonoy Municipal Operations Office"],
+            "KIBLAWAN": ["Kiblawan Municipal Operations Office"],
+            "MAGSAYSAY": ["Magsaysay Municipal Operations Office"],
+            "MALALAG": ["Malalag Municipal Operations Office"],
+            "MATANAO": ["Matanao Municipal Operations Office"],
+            "PADADA": ["Padada Municipal Operations Office"],
+            "SANTA CRUZ": ["Sta. Cruz Municipal Operations Office"],
+            "CITY OF DIGOS (Capital)": ["Digos City Operations Office"],
+            "SULOP": ["Sulop Municipal Operations Office"]
+        };
+
+        // Select elements
         const provinceSelect = document.getElementById('province');
         const municipalitySelect = document.getElementById('municipality');
+        const officeSelect = document.getElementById('office');
 
         provinceSelect.addEventListener('change', function() {
             const selectedProvince = this.value;
-            // Clear previous options
             municipalitySelect.innerHTML = '<option value="">Select Municipality</option>';
+            officeSelect.innerHTML = '<option value="">Select Office</option>';
+
             if (provinceMunicipalityMap[selectedProvince]) {
                 const municipalities = [...provinceMunicipalityMap[selectedProvince]];
-                municipalities.sort(); // Ensure alphabetical order
+
                 municipalities.forEach(muni => {
                     const option = document.createElement('option');
                     option.value = muni;
                     option.textContent = muni;
                     municipalitySelect.appendChild(option);
                 });
+
+                // Special case: DAVAO CITY auto-select
+                if (selectedProvince === "DAVAO CITY") {
+                    municipalitySelect.value = "Davao City";
+                    loadOffices("Davao City");
+                }
             }
         });
+
+        municipalitySelect.addEventListener('change', function() {
+            loadOffices(this.value);
+        });
+
+        function loadOffices(municipality) {
+            officeSelect.innerHTML = '<option value="">Select Office</option>';
+            if (officeMap[municipality]) {
+                officeMap[municipality].forEach(off => {
+                    const option = document.createElement('option');
+                    option.value = off;
+                    option.textContent = off;
+                    officeSelect.appendChild(option);
+                });
+            }
+        }
 
         // Auto-open modal if there are validation errors
         @if(session('openModal') || $errors->any())
