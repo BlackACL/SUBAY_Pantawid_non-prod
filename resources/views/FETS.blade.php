@@ -153,11 +153,19 @@
                         </thead>
                         <tbody>
                         @forelse ($inventory as $item)
-                            @php $disabled = in_array($item->PROPERTY_NO, $inProcessPropertyNos ?? []); @endphp
-                            <tr class="{{ $disabled ? 'bg-gray-100 text-gray-500 italic' : '' }}">
+                            @php
+                                // Determine if the device should be locked
+                                $isLocked = in_array($item->PROPERTY_NO, $inProcessPropertyNos ?? []) 
+                                            || ($item->STATUS ?? null) === 'Being Assessed for Repair';
+                                // Status text for locked devices
+                                $statusText = ($item->STATUS ?? null) === 'Being Assessed for Repair'
+                                    ? 'Being Assessed for Repair'
+                                    : ($isLocked ? 'FETS in Process' : '');
+                            @endphp
+                            <tr class="{{ $isLocked ? 'bg-gray-100 text-gray-500 italic' : '' }}">
                                 <td class="p-2 text-center">
-                                    @if ($disabled)
-                                        <span class="text-xs">FETS in Process</span>
+                                    @if ($isLocked)
+                                        <span class="text-xs">{{ $statusText }}</span>
                                     @else
                                         <input type="checkbox" name="selected[]" value="{{ $item->PROPERTY_NO }}"
                                                class="select-checkbox">

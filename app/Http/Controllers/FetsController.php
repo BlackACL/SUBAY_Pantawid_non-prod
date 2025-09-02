@@ -645,7 +645,7 @@ public function approve($id)
 
     // Update FETS document to approved
     $fets->status = 'approved';
-    $fets->approved_by = auth()->id(); // Optional: track approver
+    $fets->approved_by = auth()->id();
     $fets->save();
 
     // Handle multiple property numbers (comma-separated)
@@ -654,19 +654,25 @@ public function approve($id)
     foreach ($propertyNumbers as $propNo) {
         $cleanedPropNo = preg_replace('/\s+/', '', $propNo);
 
-        // 🔹 If movement is "For Repair", send to repair_destination
-        $newReceiver = ($fets->transfer_movement === 'For Repair')
-            ? $fets->repair_destination
-            : $fets->to_receiver;
-
-            
-        DB::table('inventory')
-            ->whereRaw("REPLACE(TRIM(PROPERTY_NO), ' ', '') = ?", [$cleanedPropNo])
-            ->update([
-                'RECEIVER' => $newReceiver,
-                'DPO_REMARKS' => DB::raw("CONCAT(IFNULL(DPO_REMARKS, ''), ' | Approved via FETS ID " . $fets->id . "')"),
-                'updated_at' => now(),
-            ]);
+        if ($fets->transfer_movement === 'For Repair') {
+            // 🔹 Lock device and set status to Being Assessed for Repair
+            DB::table('inventory')
+                ->whereRaw("REPLACE(TRIM(PROPERTY_NO), ' ', '') = ?", [$cleanedPropNo])
+                ->update([
+                    'STATUS' => 'Being Assessed for Repair',
+                    'DPO_REMARKS' => DB::raw("CONCAT(IFNULL(DPO_REMARKS, ''), ' | Assigned for Repair to: {$fets->repair_destination}')"),
+                    'updated_at' => now(),
+                ]);
+        } else {
+            // 🔹 Regular approval: update receiver
+            DB::table('inventory')
+                ->whereRaw("REPLACE(TRIM(PROPERTY_NO), ' ', '') = ?", [$cleanedPropNo])
+                ->update([
+                    'RECEIVER' => $fets->to_receiver,
+                    'DPO_REMARKS' => DB::raw("CONCAT(IFNULL(DPO_REMARKS, ''), ' | Approved via FETS ID {$fets->id}')"),
+                    'updated_at' => now(),
+                ]);
+        }
     }
 
     // Log this approval
@@ -675,7 +681,9 @@ public function approve($id)
         'action'      => 'approved',
         'actor'       => auth()->user()->fullname,
         'actor_role'  => auth()->user()->access_level,
-        'remarks'     => "FETS #{$fets->id} approved by regional DPSC",
+        'remarks'     => ($fets->transfer_movement === 'For Repair')
+            ? "FETS #{$fets->id} approved for repair assessment to {$fets->repair_destination}"
+            : "FETS #{$fets->id} approved by regional DPSC",
     ]);
 
     return back()->with('success', 'FETS document approved successfully.');
