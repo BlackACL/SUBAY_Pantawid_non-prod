@@ -27,9 +27,13 @@
 
             <div class="flex justify-between items-center mt-4 mb-4">
                 <!-- Search Filter -->
-                <div class="max-w-xs">
+                <div class="max-w-md">
                     <form method="GET" action="{{ route('users') }}" class="flex gap-2">
+<<<<<<< HEAD
                         <div class="relative w-64">
+=======
+                        <div class="relative w-96">
+>>>>>>> origin/my-version
                             <input type="text" name="search" id="searchInput" placeholder="Search by Company ID or Full Name..." 
                                    value="{{ request('search') }}"
                                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -290,9 +294,9 @@
         <div id="user-profile-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
             <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto relative">
                 <!-- Modal Header -->
-                <div class="flex items-center justify-between p-6 border-b">
-                    <h3 class="text-lg font-semibold text-gray-900">User Profile</h3>
-                    <button onclick="closeUserProfile()" class="text-gray-400 hover:text-gray-600">
+                <div class="flex items-center justify-between p-6 bg-[#ee1c25] text-white rounded-t-lg">
+                    <h3 class="text-lg font-semibold">User Profile</h3>
+                    <button onclick="closeUserProfile()" class="text-white hover:text-gray-200">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
@@ -429,7 +433,11 @@
                         </div>
                         <!-- User Info -->
                         <div>
+<<<<<<< HEAD
                             <h2 class="text-2xl font-bold text-gray-900 mb-1">${user.fullname}</h2>
+=======
+                            <h2 class="text-2xl font-bold text-[#2e3192] mb-1">${user.fullname}</h2>
+>>>>>>> origin/my-version
                             <p class="text-gray-600 mb-1">${user.company_id}</p>
                             <p class="text-black font-medium mb-4">${user.access_level}</p>
                         </div>

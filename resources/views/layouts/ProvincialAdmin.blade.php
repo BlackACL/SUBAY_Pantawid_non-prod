@@ -1,5 +1,7 @@
+@props(['hideNavbar' => false])
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+
 
 <head>
     <meta charset="utf-8">
@@ -14,28 +16,28 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
     <!-- Scripts -->
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
+    @vite(['resources/css/app.css', 'resources/js/app.js']) </head>
 
-<body class="font-sans antialiased">
-    <div class="min-h-screen bg-gray-100">
-        @include('layouts.navigation')
+    <body class="font-sans antialiased">
+        <div class="min-h-screen bg-gray-100">
+            @if(!$hideNavbar)
+                @include('layouts.navigation')
+            @endif
 
-        <!-- Page Heading -->
-        @if (isset($header))
-        <header class="bg-white shadow">
-            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                {{ $header }}
-            </div>
-        </header>
-        @endif
+            <!-- Page Heading -->
+            @if (isset($header))
+                <header class="bg-white shadow">
+                    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                        {{ $header }}
+                    </div>
+                </header>
+            @endif
 
-        <!-- Page Content -->
-        <main>
-            {{ $slot }}
-        </main>
-    </div>
-    @stack('scripts')
-</body>
-
+            <!-- Page Content -->
+            <main>
+                {{ $slot }}
+            </main>
+        </div>
+        @stack('scripts')
+    </body>
 </html>

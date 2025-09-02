@@ -21,7 +21,7 @@
 
     <label for="date_filter" class="text-sm text-gray-700">Filter by:</label>
     <select name="date_filter" id="date_filter" onchange="this.form.submit()"
-        class="border border-gray-300 rounded px-3 py-1 text-sm">
+        class="border border-gray-300 rounded px-3 py-1 text-sm w-auto min-w-[110px] pr-6">
         <option value="">All</option>
         <option value="today" {{ request('date_filter') == 'today' ? 'selected' : '' }}>Today</option>
         <option value="week" {{ request('date_filter') == 'week' ? 'selected' : '' }}>This Week</option>
@@ -32,32 +32,31 @@
 
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                        <thead class="bg-[#2e3192]">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FETS No</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To Receiver</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">FETS No</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">To Receiver</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Remarks</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             @forelse ($documents as $doc)
                             <tr>
-                                <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $doc->fets_no }}</td>
-                                <td class="px-6 py-4 text-sm text-gray-600">{{ $doc->to_receiver }}</td>
-                                <td class="px-6 py-4 text-sm text-gray-600">{{ $doc->remarks ?? 'None' }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-6 py-4 text-sm text-center font-medium text-gray-900">{{ $doc->fets_no }}</td>
+                                <td class="px-6 py-4 text-sm text-center text-gray-600">{{ $doc->to_receiver }}</td>
+                                <td class="px-6 py-4 text-sm text-center text-gray-600">{{ $doc->remarks ?? 'None' }}</td>
+                                <td class="flex justify-center items-center px-6 py-4 whitespace-nowrap">
                                     <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
                                         {{ ucfirst($doc->status) }}
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
                                     <button @click="pdfUrl = '{{ route('fets.preview', $doc->id) }}'; showModal = true"
-                                        class="flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
                                         <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                         </svg>
                                         Preview
                                     </button>

@@ -16,9 +16,9 @@
 
             <div class="flex justify-between items-center mt-4 mb-4">
                 <!-- Search Filter -->
-                <div class="max-w-xs">
+                <div class="max-w-md">
                     <form method="GET" action="{{ route('archives') }}" class="flex gap-2">
-                        <div class="relative w-64">
+                        <div class="relative w-96">
                             <input type="text" name="search" id="searchInput" placeholder="Search by Company ID or Full Name..." 
                                    value="{{ request('search') }}"
                                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">

@@ -19,28 +19,28 @@
 
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                        <thead class="bg-[#2e3192]">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FETS No</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To Receiver</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">FETS No</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">To Receiver</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Remarks</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             @forelse($documents ?? [] as $doc)
                             <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-center font-medium text-gray-900">
                                     {{ $doc->fets_no }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">
                                     {{ $doc->to_receiver }}
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
+                                <td class="px-6 py-4 text-sm text-gray-600 text-center max-w-xs truncate">
                                     {{ $doc->remarks ?? 'None' }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="flex justify-center items-center px-6 py-4 whitespace-nowrap">
                                     <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
                                         @if($doc->status === 'submitted') bg-blue-100 text-blue-800
                                         @else bg-purple-100 text-purple-800 @endif">
@@ -48,7 +48,7 @@
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <div class="flex items-center space-x-2">
+                                    <div class="flex justify-center items-center space-x-2">
                                         @if($doc->status === 'submitted')
                                             <form action="{{ route('fets.verify', $doc->id) }}" method="POST" class="inline">
                                                 @csrf
@@ -65,25 +65,23 @@
                                             <form action="{{ route('fets.reject', $doc->id) }}" method="POST" class="inline">
                                                 @csrf
                                                 @method('PATCH')
-<button type="button"
-    @click="showRejectModal = true; rejectId = {{ $doc->id }}"
-    class="flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-    <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-    </svg>
-    Reject
-</button>
-
+                                                <button type="button"
+                                                    @click="showRejectModal = true; rejectId = {{ $doc->id }}"
+                                                    class="flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                                    <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                    </svg>
+                                                    Reject
+                                                </button>
                                             </form>
-                                        @else
-                                            <span class="text-sm text-gray-500 italic">Processed</span>
-                                        @endif
+                                            @else
+                                                <span class="text-sm text-gray-500 italic">Processed</span>
+                                            @endif
 
                                         <button @click="pdfUrl = '{{ route('fets.preview', $doc->id) }}'; showModal = true"
-                                            class="flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                            class="flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-[#eee201] hover:bg-[#fef200] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#fef200]">
                                             <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                             </svg>
                                             Preview
                                         </button>
