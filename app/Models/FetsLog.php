@@ -7,9 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class FetsLog extends Model
 {
     public $timestamps = false;
-
+    
     protected $fillable = [
-        'fets_no',
         'property_no',
         'action',
         'actor',

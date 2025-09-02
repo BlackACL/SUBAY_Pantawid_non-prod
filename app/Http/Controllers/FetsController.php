@@ -15,6 +15,20 @@ use Illuminate\Support\Facades\Log;
 
 class FetsController extends Controller
 {
+
+    // Provincial DPSC mapping
+    private array $provincialDpsc = [
+        'Davao Occidental' => 'Jeyson A. Alvarado',
+        'Davao Del Sur'    => 'Ana Lou A. Albacite',
+        'Davao City'       => 'Ivy Balbuena',
+        'Davao Del Norte'  => 'Genevieve N. Jitotowani',
+        'Davao De Oro'     => 'Gino Logronio',
+        'Davao Oriental'   => 'Mayzel Dawn Rebuyon',
+        'RPMO'             => 'Russell Allen S. Mozo',
+    ];
+
+    private string $headOfProperty = 'Al Jay Meliton';    
+
 public function select(Request $request)
 {
     $user = auth()->user();
@@ -116,29 +130,22 @@ public function submittedEmbed()
 public function generate(Request $request)
 {
     $validated = $request->validate([
-        'property_no'   => 'nullable|string',
-        'selected'      => 'required|array|min:1|max:5',
-        'to_receiver'   => 'required|string',
-        'remarks'       => 'required|string',
+        'property_no'        => 'nullable|string',
+        'selected'           => 'required|array|min:1|max:5',
+        'transfer_movement'  => 'required|string',
+        'remarks'            => 'required|string',
+        'repairer_name'      => 'nullable|string',
+        'to_receiver'        => 'nullable|string', // only for reissuance
     ]);
 
-    // ✅ Duplication check here
-        $duplicates = FetsDocument::whereIn('property_no', $validated['selected'])
-        ->whereIn('status', ['submitted', 'pending'])
-        ->pluck('property_no')
-        ->toArray();
+    $user     = auth()->user();
+    $remarks  = $validated['remarks'];
+    $movement = $validated['transfer_movement'];
 
-    if (!empty($duplicates)) {
-        return back()->withErrors([
-            'selected' => 'Some items are already in process: ' . implode(', ', $duplicates)
-        ]);
-    }
+    // 🔹 Determine receiver based on transfer movement
+    $toPerson = $this->determineReceiver($user, $movement, $remarks, $validated);
 
-    $user = auth()->user();
-    $toPerson = $validated['to_receiver'];
-    $remarks = $validated['remarks'];
-    $fetsNo = 'FETS-' . now()->format('YmdHis') . '-' . rand(100, 999);
-    $date = now()->format('F m, Y');
+    $date        = now()->format('F m, Y');
     $fixedOffice = 'Pantawid (RPMO)';
 
     $propertyNo = $validated['property_no'] ?? null;
@@ -149,9 +156,7 @@ public function generate(Request $request)
     // MULTI-UNIT PATH
     if (!empty($validated['selected']) && count($validated['selected']) > 1) {
         $allItems = DB::table('inventory')->whereIn('PROPERTY_NO', $validated['selected'])->get();
-        $chunks = [];
 
-        // Helper: function to detect if long template is needed
         $isLong = function ($items) use ($toPerson, $remarks) {
             return $items->contains(function ($item) use ($toPerson, $remarks) {
                 return strlen($item->GENERAL_DESCRIPTION ?? '') > 120 ||
@@ -164,18 +169,18 @@ public function generate(Request $request)
             });
         };
 
-        $pdf = new Fpdi();
-        $configSet = config('fets_coords');
+        $pdf        = new Fpdi();
+        $configSet  = config('fets_coords');
         $chunkedPages = [];
 
         $startIndex = 0;
-        $remaining = count($allItems);
+        $remaining  = count($allItems);
 
         while ($remaining > 0) {
             $fit = min($remaining, 5); // max template size is 5
 
             while ($fit > 0) {
-                $useLong = $isLong($allItems->slice($startIndex, $fit));
+                $useLong  = $isLong($allItems->slice($startIndex, $fit));
                 $template = 'FETS-FO-9' . ($useLong ? '-long' : '') . '-for' . $fit . '.pdf';
 
                 if (isset($configSet[$template])) {
@@ -185,11 +190,11 @@ public function generate(Request $request)
                         'config'   => $configSet[$template],
                     ];
                     $startIndex += $fit;
-                    $remaining -= $fit;
+                    $remaining  -= $fit;
                     break;
                 }
 
-                $fit--; // fallback to smaller template if missing
+                $fit--;
             }
 
             if ($fit === 0) {
@@ -199,7 +204,7 @@ public function generate(Request $request)
 
         foreach ($chunkedPages as $page) {
             $templatePath = storage_path("app/templates/{$page['template']}");
-            $pageCount = $pdf->setSourceFile($templatePath);
+            $pageCount    = $pdf->setSourceFile($templatePath);
 
             $isPage2Allowed = in_array($page['template'], [
                 'FETS-FO-9-long.pdf',
@@ -209,7 +214,7 @@ public function generate(Request $request)
                 'FETS-FO-9-long-for5.pdf',
             ]);
 
-            $page2FieldsAlways = ['requested_by', 'recommending', 'approving', 'received_by'];
+            $page2FieldsAlways      = ['requested_by', 'recommending', 'approving', 'received_by'];
             $page2ExtraForMultiLong = ['from_office', 'from_person', 'to_office', 'to_person'];
 
             $fieldsOnPage2 = $isPage2Allowed
@@ -221,20 +226,19 @@ public function generate(Request $request)
                 : [];
 
             for ($i = 1; $i <= $pageCount; $i++) {
-                $tpl = $pdf->importPage($i);
+                $tpl  = $pdf->importPage($i);
                 $size = $pdf->getTemplateSize($tpl);
                 $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
                 $pdf->useTemplate($tpl);
 
-                $cfg = $page['config'];
-                $items = $page['items'];
+                $cfg        = $page['config'];
+                $items      = $page['items'];
                 $lineHeight = $cfg['line_height'];
 
                 $pdf->SetFont('Helvetica');
                 $pdf->SetFontSize(8);
                 $pdf->SetTextColor(0, 0, 0);
 
-                // Page 1: Inject units and fields NOT in fieldsOnPage2
                 if ($i === 1) {
                     foreach ($items as $idx => $item) {
                         $y = $cfg['base_y'] + ($cfg['y_offset'] * $idx);
@@ -257,12 +261,11 @@ public function generate(Request $request)
                         $pdf->MultiCell(40, $lineHeight, $remarks, 0);
                     }
 
-                    // Additional fields (page 1 only if NOT in page 2 list)
                     $first = $items->first();
                     foreach ($cfg['fields'] ?? [] as $field => [$x, $y]) {
                         if (!in_array($field, $fieldsOnPage2)) {
                             $value = match ($field) {
-                                'fets_no'       => $fetsNo,
+                                'fets_no'       => '', // removed
                                 'fets_date'     => $date,
                                 'from_office'   => $this->wrapPersonOffice($fixedOffice),
                                 'to_office'     => $this->wrapPersonOffice($fixedOffice),
@@ -270,8 +273,8 @@ public function generate(Request $request)
                                 'to_person'     => $this->wrapPersonOffice($toPerson),
                                 'requested_by'  => $this->wrapPersonOffice($first->RECEIVER ?? ''),
                                 'received_by'   => $this->wrapPersonOffice($toPerson),
-                                'recommending',
-                                'approving'     => 'supervisor-placeholder',
+                                'recommending'  => 'Margie Cabido-Sobretodo',
+                                'approving'     => 'Mia Dulce Corazon V. Monesit',
                                 default         => '',
                             };
 
@@ -281,13 +284,12 @@ public function generate(Request $request)
                     }
                 }
 
-                // Page 2: Inject fields from the $fieldsOnPage2 set
                 if ($i === 2) {
                     $first = $items->first();
                     foreach ($cfg['fields'] ?? [] as $field => [$x, $y]) {
                         if (in_array($field, $fieldsOnPage2)) {
                             $value = match ($field) {
-                                'fets_no'       => $fetsNo,
+                                'fets_no'       => '',// removed
                                 'fets_date'     => $date,
                                 'from_office'   => $this->wrapPersonOffice($fixedOffice),
                                 'to_office'     => $this->wrapPersonOffice($fixedOffice),
@@ -295,8 +297,8 @@ public function generate(Request $request)
                                 'to_person'     => $this->wrapPersonOffice($toPerson),
                                 'requested_by'  => $this->wrapPersonOffice($first->RECEIVER ?? ''),
                                 'received_by'   => $this->wrapPersonOffice($toPerson),
-                                'recommending',
-                                'approving'     => 'supervisor-placeholder',
+                                'recommending'  => 'Margie Cabido-Sobretodo',
+                                'approving'     => 'Mia Dulce Corazon V. Monesit',
                                 default         => '',
                             };
 
@@ -313,24 +315,14 @@ public function generate(Request $request)
         Storage::put($filePath, $pdf->Output('S'));
 
         $fets = FetsDocument::create([
-            'fets_no' => $fetsNo,
-            'property_no' => implode(',', $validated['selected']),
-            'to_receiver' => $toPerson,
-            'remarks' => $remarks,
-            'user_id' => $user->id,
-            'file_name' => $fileName,
-            'file_path' => $filePath,
-            'status' => 'submitted',
-        ]);
-
-        \App\Models\FetsLog::create([
-            'fets_no'     => $fetsNo,
-            'property_no' => implode(',', $validated['selected']),
-            'action'      => 'submitted',
-            'actor'       => $user->fullname,
-            'actor_role'  => $user->access_level,
-            'remarks'     => $remarks,
-            'created_at'  => now(),
+            'property_no'       => implode(',', $validated['selected']),
+            'to_receiver'       => $toPerson,
+            'remarks'           => $remarks,
+            'transfer_movement' => $movement,
+            'user_id'           => $user->id,
+            'file_name'         => $fileName,
+            'file_path'         => $filePath,
+            'status'            => 'submitted',
         ]);
 
         return redirect()->route('fets.select')->with([
@@ -358,24 +350,23 @@ public function generate(Request $request)
         strlen($toPerson) > 35
     );
 
-    $template = $useLong ? 'FETS-FO-9-long.pdf' : 'FETS-FO-9.pdf';
+    $template     = $useLong ? 'FETS-FO-9-long.pdf' : 'FETS-FO-9.pdf';
     $templatePath = storage_path("app/templates/{$template}");
 
     $configSet = config('fets_coords');
     if (!isset($configSet[$template])) {
-        $keys = implode(', ', array_keys($configSet));
-        return back()->with('error', "Template coordinates not found for '{$template}'. Available keys: {$keys}");
+        return back()->with('error', "Template coordinates not found for '{$template}'.");
     }
 
-    $cfg = $configSet[$template];
-    $fields = $cfg['fields'];
+    $cfg        = $configSet[$template];
+    $fields     = $cfg['fields'];
     $lineHeight = $cfg['line_height'];
 
-    $pdf = new Fpdi();
+    $pdf       = new Fpdi();
     $pageCount = $pdf->setSourceFile($templatePath);
 
     for ($i = 1; $i <= $pageCount; $i++) {
-        $tpl = $pdf->importPage($i);
+        $tpl  = $pdf->importPage($i);
         $size = $pdf->getTemplateSize($tpl);
         $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
         $pdf->useTemplate($tpl);
@@ -387,7 +378,7 @@ public function generate(Request $request)
 
             foreach ($fields as $field => [$x, $y]) {
                 $value = match ($field) {
-                    'fets_no'       => $fetsNo,
+                    'fets_no'       => '', //removed
                     'fets_date'     => $date,
                     'property_no'   => $this->wrapCommaText($item->PROPERTY_NO, 20),
                     'serial_no'     => $this->wrapCommaText($item->SERIAL_NO ?? ''),
@@ -400,29 +391,13 @@ public function generate(Request $request)
                     'to_person'     => $this->wrapPersonOffice($toPerson),
                     'requested_by'  => $this->wrapPersonOffice($item->RECEIVER ?? ''),
                     'received_by'   => $this->wrapPersonOffice($toPerson),
-                    'recommending',
-                    'approving'     => 'supervisor-placeholder',
+                    'recommending'  => 'Margie Cabido-Sobretodo',
+                    'approving'     => 'Mia Dulce Corazon V. Monesit',
                     default         => '',
                 };
 
-                if (in_array($field, ['property_no', 'serial_no'])) {
-                    $pdf->SetFont('Helvetica', '', 7);
-                }
-
-                $cellWidth = match($field) {
-                    'description' => 180,
-                    'from_office' => 100,
-                    'from_person' => 100,
-                    'to_office'   => 100,
-                    'to_person'   => 100,
-                    'serial_no'   => 30,
-                    'property_no' => 30,
-                    default       => 40,
-                };
-
                 $pdf->SetXY($x, $y);
-                $pdf->MultiCell($cellWidth, $lineHeight, $value, 0);
-                $pdf->SetFont('Helvetica', '', 8); // reset font
+                $pdf->MultiCell(40, $lineHeight, $value, 0);
             }
         }
     }
@@ -432,27 +407,16 @@ public function generate(Request $request)
     Storage::put($filePath, $pdf->Output('S'));
 
     $fets = FetsDocument::create([
-        'fets_no' => $fetsNo,
-        'property_no' => $item->PROPERTY_NO,
-        'to_receiver' => $toPerson,
-        'remarks' => $remarks,
-        'user_id' => $user->id,
-        'file_name' => $fileName,
-        'file_path' => $filePath,
-        'status' => 'submitted',
+        'property_no'       => $item->PROPERTY_NO,
+        'to_receiver'       => $toPerson,
+        'remarks'           => $remarks,
+        'transfer_movement' => $movement,
+        'user_id'           => $user->id,
+        'file_name'         => $fileName,
+        'file_path'         => $filePath,
+        'status'            => 'submitted',
     ]);
 
-    \App\Models\FetsLog::create([
-        'fets_no'     => $fetsNo,
-        'property_no' => $item->PROPERTY_NO,
-        'action'      => 'submitted',
-        'actor'       => $user->fullname,
-        'actor_role'  => $user->access_level,
-        'remarks'     => $remarks,
-        'created_at'  => now(),
-    ]);
-
-    // after saving $fets
     $redirectRoute = $request->has('embed') ? 'fets.select.embed' : 'fets.select';
 
     return redirect()->route($redirectRoute)->with([
@@ -461,7 +425,6 @@ public function generate(Request $request)
         'fets_preview_url' => route('fets.preview', ['id' => $fets->id]),
         'fets_download_url' => route('fets.download', ['id' => $fets->id]),
     ]);
-
 }
 
 
@@ -491,6 +454,29 @@ public function generate(Request $request)
 
 
 
+     private function determineReceiver($user, string $movement, string $remarks, array $validated): string
+    {
+        switch ($movement) {
+            case 'Return to Lender':
+            case 'For Surrender to Property':
+                if (strtolower($remarks) === 'serviceable') {
+                    return $this->provincialDpsc[$user->province] ?? 'Unknown Provincial DPSC';
+                }
+                return $this->headOfProperty;
+
+            case 'For Repair':
+                return $validated['repairer_name'] ?? 'Unknown Repairer';
+
+            case 'For Reissuance':
+                if (in_array($user->access_level, ['Provincial DPSC', 'Regional DPSC'])) {
+                    return $validated['to_receiver'] ?? 'Unspecified Receiver';
+                }
+                throw new \Exception('Unauthorized transfer movement for non-DPSC users.');
+
+            default:
+                return $validated['to_receiver'] ?? 'Unspecified Receiver';
+        }
+    }   
 
  public function reviewSubmitted()
 {
@@ -595,14 +581,23 @@ public function verify($id)
     $fets->verified_by = auth()->id(); // optional: add this if your table has it
     $fets->save();
 
-    FetsLog::create([
-        'fets_no' => $fets->fets_no,
-        'property_no' => $fets->property_no,
-        'action' => 'verified',
-        'actor' => auth()->user()->fullname,
-        'actor_role' => auth()->user()->access_level,
-        'remarks' => 'FETS verified by DPSC',
-    ]);
+ FetsLog::create([
+     'property_no' => $fets->property_no,
+     'action'      => 'verified',
+     'actor'       => auth()->user()->fullname,
+     'actor_role'  => auth()->user()->access_level,
+     'remarks'     => "FETS #{$fets->id} verified by DPSC",
+ ]);
+
+    // Spatie activity log
+    activity()
+        ->causedBy(auth()->user())
+        ->performedOn($fets)
+        ->withProperties([
+            'fets_id'      => $fets->id,
+            'property_no' => $fets->property_no
+        ])
+        ->log('Verified FETS');
 
     return back()->with('success', 'FETS document verified successfully.');
 }
@@ -633,24 +628,22 @@ public function approve($id)
             ->whereRaw("REPLACE(TRIM(PROPERTY_NO), ' ', '') = ?", [$cleanedPropNo])
             ->update([
                 'RECEIVER' => $fets->to_receiver,
-                'DPO_REMARKS' => DB::raw("CONCAT(IFNULL(DPO_REMARKS, ''), ' | Approved via FETS #" . $fets->fets_no . "')"),
+                'DPO_REMARKS' => DB::raw("CONCAT(IFNULL(DPO_REMARKS, ''), ' | Approved via FETS ID " . $fets->id . "')"),
                 'updated_at' => now(),
             ]);
     }
 
     // Log this approval
-    FetsLog::create([
-        'fets_no' => $fets->fets_no,
-        'property_no' => $fets->property_no,
-        'action' => 'approved',
-        'actor' => auth()->user()->fullname,
-        'actor_role' => auth()->user()->access_level,
-        'remarks' => 'FETS approved by regional DPSC',
-    ]);
+ FetsLog::create([
+     'property_no' => $fets->property_no,
+     'action'      => 'approved',
+     'actor'       => auth()->user()->fullname,
+     'actor_role'  => auth()->user()->access_level,
+     'remarks'     => "FETS #{$fets->id} approved by regional DPSC",
+ ]);
 
     return back()->with('success', 'FETS document approved successfully.');
 }
-
 
 
 
@@ -667,19 +660,19 @@ public function reject(Request $request, $id)
         'remarks' => 'required|string|max:1000',
     ]);
 
+    
     $fets->status = 'rejected';
     $fets->rejected_remarks = $request->remarks;
     $fets->save();
 
     // Log the action
-    FetsLog::create([
-        'fets_no' => $fets->fets_no,
-        'property_no' => $fets->property_no,
-        'action' => 'rejected',
-        'actor' => auth()->user()->fullname,
-        'actor_role' => auth()->user()->access_level,
-        'remarks' => $request->remarks,
-    ]);
+ FetsLog::create([
+     'property_no' => $fets->property_no,
+     'action'      => 'rejected',
+     'actor'       => auth()->user()->fullname,
+     'actor_role'  => auth()->user()->access_level,
+     'remarks'     => "FETS #{$fets->id} rejected: " . $request->remarks,
+ ]);
 
     return back()->with('success', 'FETS document rejected successfully.');
 }

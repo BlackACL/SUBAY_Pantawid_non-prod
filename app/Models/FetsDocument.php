@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 class FetsDocument extends Model
 {
     protected $fillable = [
-        'fets_no',
         'property_no',
         'to_receiver',
         'to_office',
@@ -19,17 +18,20 @@ class FetsDocument extends Model
         'user_id',
     ];
 
-public function submitter() {
-    return $this->belongsTo(User::class, 'user_id');
-}
+    public function submitter()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
-public function verifier() {
-    return $this->belongsTo(User::class, 'verified_by');
-}
+    public function verifier()
+    {
+        return $this->belongsTo(User::class, 'verified_by');
+    }
 
-public function approver() {
-    return $this->belongsTo(User::class, 'approved_by');
-}
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
 
     protected $casts = [
         'form_data' => 'array',

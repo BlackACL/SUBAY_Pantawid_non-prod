@@ -13,6 +13,7 @@
         "setasign/fpdf": "^1.8",
         "setasign/fpdi": "^2.6",
         "setasign/fpdi-fpdf": "^2.3",
+        "spatie/laravel-activitylog": "^4.10",
         "spatie/laravel-permission": "^6.20"
     },
     "require-dev": {

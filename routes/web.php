@@ -29,7 +29,7 @@ Route::middleware('auth')->group(function () {
 
 // 🔐 SUPERADMIN Routes
 Route::middleware(['auth', 'role:superadmin', 'verified', 'twofactor'])->group(function () {
-    Route::get('/logs', fn () => view('superadmin.logs_nav.logs'))->name('logs');
+Route::get('/logs', [App\Http\Controllers\ActivityLogController::class, 'index'])->name('superadmin.logs_nav.logs');
     Route::get('/users', [UserController::class, 'index'])->name('users');
     Route::post('/users/addusers', [UserController::class, 'store'])->name('addusers.store');
     Route::get('/users/{user}/profile', [UserController::class, 'showProfile'])->name('users.profile');
