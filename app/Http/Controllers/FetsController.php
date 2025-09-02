@@ -94,9 +94,13 @@ public function selectEmbed(Request $request)
         ->paginate($perPage)
         ->appends($request->except('page'));
 
-    return view('partials.FETS', compact(
-        'receivers', 'allEquipment', 'inventory', 'inProcessPropertyNos'),
-         ['hideNavbar' => true,]);
+    return view('partials.FETS', [
+        'receivers' => $receivers,
+        'allEquipment' => $allEquipment,
+        'inventory' => $inventory,
+        'inProcessPropertyNos' => $inProcessPropertyNos,
+        'hideNavbar' => true, // 👈 add this
+    ]);
 }
 
 public function submittedEmbed()

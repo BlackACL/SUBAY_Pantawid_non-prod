@@ -1,7 +1,12 @@
 <x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Submitted FETS Request') }}
+        </h2>
+    </x-slot>
 
-<div class="py-12" x-data="{ showModal: false, pdfUrl: '' }">
-    <div class="max-w-8xl mx-auto sm:px-6 lg:px-8">
+<div class="py-6" x-data="{ showModal: false, pdfUrl: '' }">
+    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
             @if(session('success'))
                 <div class="mb-4 p-4 bg-green-100 border-l-4 border-green-500 text-green-700">
@@ -11,30 +16,30 @@
 
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                    <thead class="bg-[#2e3192]">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">FETS No</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">To Receiver</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Items</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Verification</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Approval</th>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase">FETS No</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase">To Receiver</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase">Items</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase">Status</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase">Verification</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase">Approval</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse($documents as $doc)
                         <tr>
-                            <td class="px-6 py-4 text-sm font-medium text-gray-900">
+                            <td class="px-6 py-4 text-sm font-medium text-gray-900 text-center">
                                 {{ $doc->fets_no }}
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-500">
+                            <td class="px-6 py-4 text-sm text-gray-500 text-center">
                                 {{ $doc->to_receiver }}
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-500">
+                            <td class="px-6 py-4 text-sm text-gray-500 text-center">
                                 {{ count(explode(',', $doc->property_no)) }}
                             </td>
-                            <td class="px-6 py-4">
+                            <td class="px-6 py-4 align-middle text-center">
                                 @php
                                     $statusClasses = [
                                         'submitted' => 'bg-blue-100 text-blue-800',
@@ -43,6 +48,7 @@
                                         'rejected' => 'bg-red-100 text-red-800'
                                     ];
                                 @endphp
+
                                 <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $statusClasses[$doc->status] ?? 'bg-gray-100 text-gray-800' }}">
                                     {{ ucfirst($doc->status) }}
                                 </span>
@@ -58,25 +64,25 @@
                                 @endif
                             </td>
 
-                            <td class="px-6 py-4">
+                            <td class="px-6 py-4 text-center">
                                 @if($doc->verified_by)
-                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                                    <span class="inline-block px-6 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
                                         Verified
                                     </span>
-                                    <div class="text-xs text-gray-500 mt-1">
+                                    <div class="text-xs text-gray-500 mt-1 text-center">
                                         By: {{ $doc->verifier->fullname ?? 'N/A' }}
                                     </div>
-                                    <div class="text-xs text-gray-500">
+                                    <div class="text-xs text-gray-500 text-center">
                                         {{ $doc->updated_at->format('M d, Y') }}
                                     </div>
                                 @else
-                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                    <span class="inline-block px-6 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
                                         Pending
                                     </span>
                                 @endif
                             </td>
 
-                            <td class="px-6 py-4">
+                            <td class="px-6 py-4 flex-col items-center justify-center text-center">
                                 @if($doc->approved_by)
                                     <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                                         Approved
@@ -94,11 +100,25 @@
                                 @endif
                             </td>
 
-                            <td class="px-6 py-4 text-sm font-medium space-x-2">
-                                <a href="{{ route('fets.download', $doc->id) }}" class="text-blue-600 hover:text-blue-900">Download</a>
+                            <td class="px-6 py-4 text-sm font-medium">
+                            <div class="flex justify-center items-center space-x-2 h-full">
+                                <!-- Download Button -->
+                                <a href="{{ route('fets.download', $doc->id) }}"
+                                class="px-4 py-2 rounded text-white font-medium shadow 
+                                        hover:opacity-90 transition"
+                                style="background-color:#ee1c25;">
+                                    Download
+                                </a>
+
+                                <!-- Preview Button -->
                                 <button @click="pdfUrl = '{{ route('fets.preview', $doc->id) }}'; showModal = true"
-                                        class="text-indigo-600 hover:text-indigo-900">Preview</button>
-                            </td>
+                                        class="px-4 py-2 rounded text-white font-medium shadow 
+                                            hover:opacity-90 transition"
+                                        style="background-color:#16A34A;">
+                                    Preview
+                                </button>
+                            </div>
+                        </td>
                         </tr>
                         @empty
                         <tr>
