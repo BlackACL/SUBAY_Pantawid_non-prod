@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @mixin IdeHelperFetsDocument
+ */
 class FetsDocument extends Model
 {
     protected $fillable = [
@@ -16,6 +19,8 @@ class FetsDocument extends Model
         'file_path',
         'form_data',
         'user_id',
+        'transfer_movement',
+        'repair_destination',
     ];
 
     public function submitter()

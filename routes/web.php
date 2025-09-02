@@ -5,6 +5,8 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TwoFactorCodeController;
+use App\Models\ImportProgress;
+
 
 // Redirect root to login
 Route::get('/', fn () => redirect('login'));
@@ -86,8 +88,7 @@ Route::get('/fets/preview/{id}', [FetsController::class, 'preview'])
 
 Route::get('/fets/view/{id}', [FetsController::class, 'preview'])->name('fets.view');
 
-
-
+// FETS Embed on DPSC's
 Route::middleware(['auth','verified','twofactor'])->group(function () {
     Route::get('/FETS/embed', [FetsController::class, 'selectEmbed'])->name('fets.select.embed');
     Route::get('/SubmittedFETS/embed', [FetsController::class, 'submittedEmbed'])->name('fets.submitted.embed');
@@ -96,6 +97,19 @@ Route::middleware(['auth','verified','twofactor'])->group(function () {
 Route::get('/fets/submittedEmbed', [FetsController::class, 'submittedEmbed'])
     ->middleware(['auth', 'verified', 'twofactor'])
     ->name('fets.submittedEmbed');
+
+// Block direct GET access to /users/import
+Route::get('/users/import', function () {
+    return redirect()->route('users')
+        ->with('error', 'You cannot access /users/import directly. Please upload a CSV.');
+});
+
+// Handle CSV upload/import
+Route::post('/users/import', [UserController::class, 'import'])->name('users.import');
+
+Route::get('/import/progress', function () {
+    return \App\Models\ImportProgress::where('type', 'fets_import')->first();
+});
 
 
 require __DIR__ . '/auth.php';

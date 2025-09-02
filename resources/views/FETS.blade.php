@@ -13,20 +13,19 @@
 
             {{-- ✅ Success --}}
             @if(session('success'))
-                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative transition duration-500 ease-in-out mb-4">
+                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">
                     <strong class="font-bold">Success!</strong>
                     <span class="block sm:inline">{{ session('success') }}</span>
 
                     @if(session('fets_id'))
                         <div class="mt-3 flex gap-3">
                             <a href="{{ route('fets.download', ['id' => session('fets_id')]) }}"
-                               class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow transition duration-200">
+                               class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow">
                                 📥 Download PDF
                             </a>
-
                             <a href="{{ route('fets.preview', ['id' => session('fets_id')]) }}"
                                target="_blank"
-                               class="inline-block bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded shadow transition duration-200">
+                               class="inline-block bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded shadow">
                                 👁️ Preview PDF
                             </a>
                         </div>
@@ -60,11 +59,9 @@
 
                     <input type="hidden" name="to_receiver" id="hidden_receiver">
 
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                        </svg>
+                    <button type="submit"
+                            class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
+                        🔍
                     </button>
 
                     @if(request('search'))
@@ -83,22 +80,36 @@
                 {{-- Transfer Movement --}}
                 <div class="mb-4">
                     <label class="block font-medium text-sm text-gray-700">Transfer Movement</label>
-                    <select id="transfer_movement" name="transfer_movement" required class="w-full border rounded p-2 text-sm">
-                        <option value="" disabled selected>-- Select Transfer Movement --</option>
-                        <option value="Return to Lender">Return to Lender</option>
-                        <option value="For Surrender">For Surrender</option>
-                        <option value="For Repair">For Repair</option>
+                    <select id="transfer_movement" name="transfer_movement" required
+                            class="w-full border rounded p-2 text-sm">
+                        <option value="" disabled {{ old('transfer_movement') ? '' : 'selected' }}>
+                            -- Select Transfer Movement --
+                        </option>
+                        <option value="Return to Lender" {{ old('transfer_movement') == 'Return to Lender' ? 'selected' : '' }}>
+                            Return to Lender
+                        </option>
+                        <option value="For Surrender" {{ old('transfer_movement') == 'For Surrender' ? 'selected' : '' }}>
+                            For Surrender
+                        </option>
+                        <option value="For Repair" {{ old('transfer_movement') == 'For Repair' ? 'selected' : '' }}>
+                            For Repair
+                        </option>
                     </select>
                 </div>
 
                 {{-- Repair Destination (conditional) --}}
-                <div id="repair_destination_wrapper" class="mb-4 hidden">
+                <div id="repair_destination_wrapper"
+                     class="mb-4 {{ old('transfer_movement') == 'For Repair' ? '' : 'hidden' }}">
                     <label class="block font-medium text-sm text-gray-700">Repair Destination</label>
                     <select id="repair_destination" name="repair_destination" class="w-full border rounded p-2 text-sm">
-                        <option value="" disabled selected>-- Select Repair Destination --</option>
-                        <option value="ICTMS">ICTMS</option>
-                        <option value="Pantawid ICT">Pantawid ICT</option>
-                        <option value="Service Provider">Service Provider</option>
+                        <option value="" disabled {{ old('repair_destination') ? '' : 'selected' }}>
+                            -- Select Repair Destination --
+                        </option>
+                        @foreach($repairDestinations as $dest)
+                            <option value="{{ $dest->name }}" {{ old('repair_destination') == $dest->name ? 'selected' : '' }}>
+                                {{ $dest->name }}
+                            </option>
+                        @endforeach
                     </select>
                 </div>
 
@@ -106,17 +117,18 @@
                 <div class="mb-4">
                     <label class="block font-medium text-sm text-gray-700">To Accountable Person</label>
                     <input type="text" id="to_receiver_display"
-                           value="(auto-filled based on Transfer Movement + Remarks)"
+                           value="{{ old('to_receiver_display', '(auto-filled based on Transfer Movement + Remarks)') }}"
                            class="w-full border rounded p-2 text-sm bg-gray-100 cursor-not-allowed" disabled>
-                    <input type="hidden" id="to_receiver" name="to_receiver">
+                    <input type="hidden" id="to_receiver" name="to_receiver" value="{{ old('to_receiver') }}">
                 </div>
 
                 {{-- Remarks --}}
-                <div class="mb-4">
+                <div id="remarks_wrapper"
+                     class="mb-4 {{ old('transfer_movement') == 'For Repair' ? 'hidden' : '' }}">
                     <label class="block font-medium text-sm text-gray-700">Remarks</label>
                     <select id="remarks" name="remarks" class="w-full border rounded p-2 text-sm" required>
-                        <option value="Serviceable">Serviceable</option>
-                        <option value="Unserviceable">Unserviceable</option>
+                        <option value="Serviceable" {{ old('remarks') == 'Serviceable' ? 'selected' : '' }}>Serviceable</option>
+                        <option value="Unserviceable" {{ old('remarks') == 'Unserviceable' ? 'selected' : '' }}>Unserviceable</option>
                     </select>
                 </div>
 
@@ -141,10 +153,8 @@
                         </thead>
                         <tbody>
                         @forelse ($inventory as $item)
-                            @php
-                                $disabled = in_array($item->PROPERTY_NO, $inProcessPropertyNos ?? []);
-                            @endphp
-                            <tr class="{{ $disabled ? 'bg-gray-100 text-gray-500 italic' : 'transition duration-150 ease-in-out' }}">
+                            @php $disabled = in_array($item->PROPERTY_NO, $inProcessPropertyNos ?? []); @endphp
+                            <tr class="{{ $disabled ? 'bg-gray-100 text-gray-500 italic' : '' }}">
                                 <td class="p-2 text-center">
                                     @if ($disabled)
                                         <span class="text-xs">FETS in Process</span>
@@ -176,25 +186,15 @@
         function updateCheckboxState() {
             const checkboxes = document.querySelectorAll('input.select-checkbox');
             const checkedCount = [...checkboxes].filter(cb => cb.checked).length;
-
             checkboxes.forEach(cb => {
                 const row = cb.closest('tr');
-                const isDisabledDueToLimit = !cb.checked && checkedCount >= 5;
-
-                cb.disabled = isDisabledDueToLimit;
-
-                if (isDisabledDueToLimit) {
-                    row.classList.add('opacity-50', 'cursor-not-allowed');
-                } else {
-                    row.classList.remove('opacity-50', 'cursor-not-allowed');
-                }
+                cb.disabled = !cb.checked && checkedCount >= 5;
+                row.classList.toggle('opacity-50', cb.disabled);
+                row.classList.toggle('cursor-not-allowed', cb.disabled);
             });
         }
-
-        document.querySelectorAll('input.select-checkbox').forEach(cb => {
-            cb.addEventListener('change', updateCheckboxState);
-        });
-
+        document.querySelectorAll('input.select-checkbox').forEach(cb =>
+            cb.addEventListener('change', updateCheckboxState));
         document.addEventListener('DOMContentLoaded', updateCheckboxState);
     </script>
 
@@ -202,6 +202,7 @@
     <script>
         const movementSelect = document.getElementById('transfer_movement');
         const remarksSelect = document.getElementById('remarks');
+        const remarksWrapper = document.getElementById('remarks_wrapper');
         const repairWrapper = document.getElementById('repair_destination_wrapper');
         const repairSelect = document.getElementById('repair_destination');
         const toReceiverHidden = document.getElementById('to_receiver');
@@ -213,11 +214,17 @@
 
             if (movement === 'For Repair') {
                 repairWrapper.classList.remove('hidden');
-                toReceiverHidden.value = '';
-                toReceiverDisplay.value = '(select repair destination)';
+                remarksWrapper.classList.add('hidden');
+                if (repairSelect.value) {
+                    toReceiverHidden.value = repairSelect.value;
+                    toReceiverDisplay.value = repairSelect.value;
+                } else {
+                    toReceiverHidden.value = '';
+                    toReceiverDisplay.value = '(select repair destination)';
+                }
             } else {
                 repairWrapper.classList.add('hidden');
-
+                remarksWrapper.classList.remove('hidden');
                 if ((movement === 'Return to Lender' || movement === 'For Surrender') && remarks) {
                     if (remarks === 'Serviceable') {
                         toReceiverHidden.value = '(auto-fill Provincial DPSC via backend)';
@@ -239,6 +246,8 @@
             toReceiverHidden.value = this.value;
             toReceiverDisplay.value = this.value;
         });
+
+        document.addEventListener('DOMContentLoaded', updateReceiver);
     </script>
 
 </x-app-layout>

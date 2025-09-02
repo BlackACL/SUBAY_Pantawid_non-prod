@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @mixin IdeHelperInventory
+ */
 class Inventory extends Model
 {
     protected $table = 'inventory'; // if your table name is 'units'

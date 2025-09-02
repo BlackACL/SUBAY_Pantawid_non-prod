@@ -6,12 +6,20 @@
     </x-slot>
 
     @if(session('success'))
-    <div id="success-alert" class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative flex items-center justify-between" role="alert">
-        <span class="block sm:inline">{{ session('success') }}</span>
-        <button onclick="document.getElementById('success-alert').style.display='none'" class="absolute top-0 right-0 mt-2 mr-4 text-green-700 hover:text-green-900 text-2xl font-bold leading-none focus:outline-none" aria-label="Close">
-            &times;
-        </button>
-    </div>
+        <div id="success-alert" class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative flex items-center justify-between" role="alert">
+            <span class="block sm:inline">{{ session('success') }}</span>
+            <button onclick="document.getElementById('success-alert').style.display='none'" class="absolute top-0 right-0 mt-2 mr-4 text-green-700 hover:text-green-900 text-2xl font-bold leading-none focus:outline-none" aria-label="Close">
+                &times;
+            </button>
+        </div>
+    @endif
+    @if(session('error'))
+        <div id="error-alert" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative flex items-center justify-between" role="alert">
+            <span class="block sm:inline">{{ session('error') }}</span>
+                <button onclick="document.getElementById('error-alert').style.display='none'" class="absolute top-0 right-0 mt-2 mr-4 text-red-700 hover:text-red-900 text-2xl font-bold leading-none focus:outline-none" aria-label="Close">
+                    &times;
+                </button>
+        </div>
     @endif
 
     <div class="py-12" id="main-content">
@@ -22,7 +30,7 @@
                 <div class="max-w-xs">
                     <form method="GET" action="{{ route('users') }}" class="flex gap-2">
                         <div class="relative w-64">
-                            <input type="text" name="search" id="searchInput" placeholder="Search by ID or Full Name..." 
+                            <input type="text" name="search" id="searchInput" placeholder="Search by Company ID or Full Name..." 
                                    value="{{ request('search') }}"
                                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -47,41 +55,46 @@
                 <!-- Add User Button -->
                 <div class="ml-4">
                     <button onclick="openModal()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">
-                <i class="fas fa-user-plus"></i>
-                {{ __('Add User') }}
-            </button>
-        </div>
-    </div>
-        <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-blue-900">
-                        <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Company ID</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Full Name</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Office</th>
-                            <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        @foreach ($users as $user)
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ $user->company_id }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <button onclick="openUserProfile({{ $user->id }})" class="text-black hover:text-blue-800 hover:underline font-medium cursor-pointer">
-                                    {{ $user->fullname }}
-                                </button>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ $user->office }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-center">
-                                <button onclick="openArchiveModal({{ $user->id }}, '{{ $user->fullname }}')" class="bg-red-700 hover:bg-red-800 text-white font-bold py-1 px-4 rounded">Archive</button>
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        <i class="fas fa-user-plus"></i>
+                        {{ __('Add User') }}
+                    </button>
+                    <!-- Import Profiles -->
+                    <button onclick="openImportModal()" 
+                        class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg transition">
+                        <i class="fas fa-file-upload"></i> {{ __('Import Profiles') }}
+                    </button>
+                </div>
             </div>
-        </div>
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-blue-900">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Company ID</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Full Name</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Office</th>
+                                <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach ($users as $user)
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap">{{ $user->company_id }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <button onclick="openUserProfile({{ $user->id }})" class="text-black hover:text-blue-800 hover:underline font-medium cursor-pointer">
+                                        {{ $user->fullname }}
+                                    </button>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">{{ $user->office }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <button onclick="openArchiveModal({{ $user->id }}, '{{ $user->fullname }}')" class="bg-red-700 hover:bg-red-800 text-white font-bold py-1 px-4 rounded">Archive</button>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
             
             <!-- Pagination -->
             <div class="mt-6 flex justify-center">
@@ -139,6 +152,7 @@
                                 <label for="province" class="block font-medium">Province</label>
                                 <select name="province" id="province" class="w-full border rounded px-3 py-2" required>
                                     <option value="">Select Province</option>
+                                    <option value="DAVAO CITY">DAVAO CITY</option>
                                     <option value="DAVAO DE ORO">DAVAO DE ORO</option>
                                     <option value="DAVAO DEL NORTE">DAVAO DEL NORTE</option>
                                     <option value="DAVAO DEL SUR">DAVAO DEL SUR</option>
@@ -156,7 +170,9 @@
                         <!-- Office -->
                         <div class="mb-4">
                             <label for="office" class="block font-medium">Office</label>
-                            <input type="text" name="office" id="office" class="w-full border rounded px-3 py-2">
+                            <select name="office" id="office" class="w-full border rounded px-3 py-2" required>
+                                <option value="">Select Office</option>
+                            </select>
                         </div>
                         <!-- Employee Status | Company ID -->
                         <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -215,6 +231,52 @@
                         <!-- Submit Button -->
                         <div class="flex justify-end">
                             <button type="submit" class="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800">Add User</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Profiles Modal -->
+    <div id="import-modal-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden">
+        <div id="import-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+            <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 p-6 relative">
+                <!-- Header -->
+                <div class="flex items-center justify-between border-b pb-3">
+                    <h3 class="text-lg font-semibold text-gray-900">Import Employee Profiles</h3>
+                    <button onclick="closeImportModal()" class="text-gray-400 hover:text-gray-600">
+                        ✕
+                    </button>
+                </div>
+
+                <!-- Body -->
+                <div class="mt-4">
+                    <form id="import-form" method="POST" action="{{ route('users.import') }}" enctype="multipart/form-data" onsubmit="uploadCSV(event)">
+                        @csrf
+                        <input type="file" name="csv_file" accept=".csv" required
+                            class="w-full border rounded px-3 py-2 mb-4">
+
+                        <!-- Progress Container -->
+                        <div id="progress-container" class="w-full bg-gray-200 rounded-full h-6 relative hidden">
+                            <!-- Progress Bar -->
+                            <div id="progress-bar" 
+                                class="bg-blue-600 h-6 rounded-full transition-all duration-500 ease-in-out" 
+                                style="width: 0%">
+                            </div>
+                            <!-- Centered Text -->
+                            <span id="progress-text" 
+                                class="absolute inset-0 flex items-center justify-center font-bold text-black transition-opacity duration-700 opacity-100">
+                                0%
+                            </span>
+                        </div>
+                        
+                        <!-- Footer -->
+                        <div class="flex justify-end">
+                            <button type="submit" 
+                                class="mt-4 bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-lg">
+                                Upload
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -368,7 +430,7 @@
                         <!-- User Info -->
                         <div>
                             <h2 class="text-2xl font-bold text-gray-900 mb-1">${user.fullname}</h2>
-                            <p class="text-gray-600 mb-1">${user.id}</p>
+                            <p class="text-gray-600 mb-1">${user.company_id}</p>
                             <p class="text-black font-medium mb-4">${user.access_level}</p>
                         </div>
                     </div>
@@ -460,8 +522,9 @@
             }
         });
 
-        // Province-Municipality Filtering Logic
+        // Province → Municipality mapping
         const provinceMunicipalityMap = {
+            "DAVAO CITY": ["Davao City"], // special case: only one municipality
             "DAVAO OCCIDENTAL": [
                 "DON MARCELINO",
                 "JOSE ABAD SANTOS (TRINIDAD)",
@@ -470,35 +533,33 @@
                 "SARANGANI"
             ],
             "DAVAO DE ORO": [
-                "COMPOSTELA",
-                "LAAK (SAN VICENTE)",
-                "MABINI (DOÑA ALICIA)",
-                "MACO",
-                "MARAGUSAN (SAN MARIANO)",
-                "MAWAB",
                 "MONKAYO",
+                "COMPOSTELA",
                 "MONTEVISTA",
-                "NABUNTURAN (Capital)",
                 "NEW BATAAN",
-                "PANTUKAN"
+                "MARAGUSAN (SAN MARIANO)",
+                "NABUNTURAN (Capital)",
+                "MAWAB",
+                "MACO",
+                "PANTUKAN",
+                "MABINI (DOÑA ALICIA)",
+                "LAAK (SAN VICENTE)"
             ],
             "DAVAO DEL NORTE": [
                 "ASUNCION (SAUG)",
                 "BRAULIO E. DUJALI",
                 "CARMEN",
-                "CITY OF PANABO",
-                "CITY OF TAGUM (Capital)",
-                "ISLAND GARDEN CITY OF SAMAL",
                 "KAPALONG",
                 "NEW CORELLA",
                 "SAN ISIDRO",
                 "SANTO TOMAS",
-                "TALAINGOD"
+                "TALAINGOD",
+                "CITY OF TAGUM (Capital)",
+                "CITY OF PANABO",
+                "ISLAND GARDEN CITY OF SAMAL"
             ],
             "DAVAO DEL SUR": [
                 "BANSALAN",
-                "CITY OF DIGOS (Capital)",
-                "DAVAO CITY",
                 "HAGONOY",
                 "KIBLAWAN",
                 "MAGSAYSAY",
@@ -506,6 +567,7 @@
                 "MATANAO",
                 "PADADA",
                 "SANTA CRUZ",
+                "CITY OF DIGOS (Capital)",
                 "SULOP"
             ],
             "DAVAO ORIENTAL": [
@@ -514,33 +576,137 @@
                 "BOSTON",
                 "CARAGA",
                 "CATEEL",
-                "CITY OF MATI (Capital)",
                 "GOVERNOR GENEROSO",
                 "LUPON",
                 "MANAY",
+                "CITY OF MATI (Capital)",
                 "SAN ISIDRO",
                 "TARRAGONA"
             ]
         };
 
+        // Municipality → Offices mapping
+        const officeMap = {
+            // DAVAO CITY
+            "Davao City": [
+                "Paquibato Sub-District",
+                "Talomo A Sub-District",
+                "Talomo B Sub-District",
+                "Toril A Sub-District",
+                "Toril B Sub-District",
+                "Buhangin A Sub-District",
+                "Buhangin B Sub-District",
+                "Poblacion Sub-District",
+                "Agdao Sub-District",
+                "Bunawan Sub-District",
+                "Calinan Sub-District",
+                "Baguio Sub-District",
+                "Tugbok Sub-District",
+                "Marilog Sub-District"
+            ],
+
+            // DAVAO DE ORO
+            "MONKAYO": ["Monkayo Municipal Operations Office"],
+            "COMPOSTELA": ["Compostela Municipal Operation Office"],
+            "MONTEVISTA": ["Montevista Municipal Operations Office"],
+            "NEW BATAAN": ["New Bataan Municipal Operations Office"],
+            "MARAGUSAN (SAN MARIANO)": ["Maragusan Municipal Operations Office"],
+            "NABUNTURAN (Capital)": ["Nabunturan Municipal Operations Office"],
+            "MAWAB": ["Mawab Municipal Operations Office"],
+            "MACO": ["Maco Municipal Operations Office"],
+            "PANTUKAN": ["Pantukan Municipal Operations Office"],
+            "MABINI (DOÑA ALICIA)": ["Mabini Municipal Operations Office"],
+            "LAAK (SAN VICENTE)": ["Laak Municipal Operations Office"],
+
+            // DAVAO ORIENTAL
+            "BAGANGA": ["Baganga Municipal Operations Office"],
+            "BANAYBANAY": ["Banaybanay Municipal Operations Office"],
+            "BOSTON": ["Boston Municipal Operations Office"],
+            "CARAGA": ["Caraga Municipal Operations Office"],
+            "CATEEL": ["Cateel Municipal Operations Office"],
+            "GOVERNOR GENEROSO": ["Governor Generoso Municipal Operations Office"],
+            "LUPON": ["Lupon Municipal Operations Office"],
+            "MANAY": ["Manay Municipal Operations Office"],
+            "CITY OF MATI (Capital)": ["Mati City Operations Office"],
+            "SAN ISIDRO": ["San Isidro Municipal Operations Office"],
+            "TARRAGONA": ["Tarragona Municipal Operations Office"],
+
+            // DAVAO DEL NORTE
+            "ASUNCION (SAUG)": ["Asuncion Municipal Operations Office"],
+            "BRAULIO E. DUJALI": ["Braulio E. Dujali Municipal Operations Office"],
+            "CARMEN": ["Carmen Municipal Operations Office"],
+            "KAPALONG": ["Kapalong Municipal Operations Office"],
+            "NEW CORELLA": ["New Corella Municipal Operations Office"],
+            "SAN ISIDRO": ["San Isidro Municipal Operations Office"],
+            "SANTO TOMAS": ["Santo Tomas Municipal Operations Office"],
+            "TALAINGOD": ["Talaingod Municipal Operations Office"],
+            "CITY OF TAGUM (Capital)": ["Tagum City Operations Office"],
+            "CITY OF PANABO": ["Panabo City Operations Office"],
+            "ISLAND GARDEN CITY OF SAMAL": ["Island Garden City of Samal City Operations Office"],
+
+            // DAVAO OCCIDENTAL
+            "DON MARCELINO": ["Don Marcelino Municipal Operations Office"],
+            "JOSE ABAD SANTOS (TRINIDAD)": ["Jose Abad Santos Municipal Operations Office"],
+            "MALITA": ["Malita Municipal Operations Office"],
+            "SANTA MARIA": ["Santa Maria Municipal Operations Office"],
+            "SARANGANI": ["Sarangani Municipal Operations Office"],
+
+            // DAVAO DEL SUR
+            "BANSALAN": ["Bansalan Municipal Operations Office"],
+            "HAGONOY": ["Hagonoy Municipal Operations Office"],
+            "KIBLAWAN": ["Kiblawan Municipal Operations Office"],
+            "MAGSAYSAY": ["Magsaysay Municipal Operations Office"],
+            "MALALAG": ["Malalag Municipal Operations Office"],
+            "MATANAO": ["Matanao Municipal Operations Office"],
+            "PADADA": ["Padada Municipal Operations Office"],
+            "SANTA CRUZ": ["Sta. Cruz Municipal Operations Office"],
+            "CITY OF DIGOS (Capital)": ["Digos City Operations Office"],
+            "SULOP": ["Sulop Municipal Operations Office"]
+        };
+
+        // Select elements
         const provinceSelect = document.getElementById('province');
         const municipalitySelect = document.getElementById('municipality');
+        const officeSelect = document.getElementById('office');
 
         provinceSelect.addEventListener('change', function() {
             const selectedProvince = this.value;
-            // Clear previous options
             municipalitySelect.innerHTML = '<option value="">Select Municipality</option>';
+            officeSelect.innerHTML = '<option value="">Select Office</option>';
+
             if (provinceMunicipalityMap[selectedProvince]) {
                 const municipalities = [...provinceMunicipalityMap[selectedProvince]];
-                municipalities.sort(); // Ensure alphabetical order
+
                 municipalities.forEach(muni => {
                     const option = document.createElement('option');
                     option.value = muni;
                     option.textContent = muni;
                     municipalitySelect.appendChild(option);
                 });
+
+                // Special case: DAVAO CITY auto-select
+                if (selectedProvince === "DAVAO CITY") {
+                    municipalitySelect.value = "Davao City";
+                    loadOffices("Davao City");
+                }
             }
         });
+
+        municipalitySelect.addEventListener('change', function() {
+            loadOffices(this.value);
+        });
+
+        function loadOffices(municipality) {
+            officeSelect.innerHTML = '<option value="">Select Office</option>';
+            if (officeMap[municipality]) {
+                officeMap[municipality].forEach(off => {
+                    const option = document.createElement('option');
+                    option.value = off;
+                    option.textContent = off;
+                    officeSelect.appendChild(option);
+                });
+            }
+        }
 
         // Auto-open modal if there are validation errors
         @if(session('openModal') || $errors->any())
@@ -548,5 +714,107 @@
                 openModal();
             });
         @endif
+
+        // Import Profiles Modal Script
+        function openImportModal() {
+            document.getElementById('import-modal-overlay').classList.remove('hidden');
+            document.getElementById('import-modal').classList.remove('hidden');
+            document.getElementById('main-content').classList.add('blur-md');
+            document.body.style.overflow = 'hidden'; 
+        }
+
+        function closeImportModal() {
+            document.getElementById('import-modal-overlay').classList.add('hidden');
+            document.getElementById('import-modal').classList.add('hidden');
+            document.getElementById('main-content').classList.remove('blur-md');
+            document.body.style.overflow = 'auto';
+        }
+
+        function uploadCSV(event) {
+            event.preventDefault();
+
+            const form = document.getElementById('import-form');
+            const formData = new FormData(form);
+            const progressBar = document.getElementById('progress-bar');
+            const progressContainer = document.getElementById('progress-container');
+            const progressText = document.getElementById('progress-text');
+
+            progressContainer.classList.remove('hidden');
+            progressBar.style.width = "0%";
+            progressText.innerText = "0%";
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", form.action, true);
+            xhr.setRequestHeader("X-CSRF-TOKEN", document.querySelector('input[name="_token"]').value);
+
+            // 🚀 Do NOT use xhr.upload progress anymore (remove it!)
+            // Just poll server progress
+            startPolling();
+
+            // On success
+            xhr.onload = function () {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    let response = {};
+                    try {
+                        response = JSON.parse(xhr.responseText);
+                    } catch (e) {
+                        console.error("Invalid JSON", xhr.responseText);
+                    }
+
+                    progressBar.classList.remove("bg-blue-600");
+                    progressBar.classList.add("bg-green-600");
+
+                    if (response.skipped && response.skipped.length > 0) {
+                        alert("Skipped rows:\n" + response.skipped.join("\n"));
+                    }
+
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    progressBar.classList.remove("bg-blue-600");
+                    progressBar.classList.add("bg-red-600");
+                    progressText.innerText = "Upload Failed";
+                }
+            };
+
+            xhr.onerror = function () {
+                progressBar.classList.remove("bg-blue-600");
+                progressBar.classList.add("bg-red-600");
+                progressText.innerText = "Error uploading file";
+            };
+
+            xhr.send(formData);
+        }
+
+        async function startPolling() {
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+
+            const interval = setInterval(async () => {
+                const res = await fetch('/import/progress');
+                const data = await res.json();
+
+                if (data) {
+                    const percent = Math.round((data.processed / data.total) * 100);
+
+                    progressBar.style.width = percent + '%';
+                    progressText.innerText = percent + '%';
+
+                    if (percent >= 100) {
+                        clearInterval(interval);
+
+                        // Smooth fade-in for done text
+                        progressText.classList.add("opacity-0"); // fade out current % text
+                        setTimeout(() => {
+                            progressText.innerText = '100% ✓ Done!';
+                            progressText.classList.remove("opacity-0");
+                            progressText.classList.add("opacity-100");
+                        }, 300);
+                    }
+                }
+            }, 1000);
+        }
+
+
     </script>
+
 </x-superadmin-layout>

@@ -33,8 +33,14 @@ public function select(Request $request)
 {
     $user = auth()->user();
 
-    $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->pluck('RECEIVER');
-    $allEquipment = DB::table('inventory')->select('PROPERTY_NO', 'GENERAL_DESCRIPTION')->get();
+    $receivers = DB::table('inventory')
+        ->select('RECEIVER')
+        ->distinct()
+        ->pluck('RECEIVER');
+
+    $allEquipment = DB::table('inventory')
+        ->select('PROPERTY_NO', 'GENERAL_DESCRIPTION')
+        ->get();
 
     $inProcessPropertyNos = FetsDocument::whereIn('status', ['submitted', 'verified', 'approved']) // ✅ EXCLUDE rejected
         ->pluck('property_no')
@@ -58,7 +64,7 @@ public function select(Request $request)
 
         $inventory->where(function ($query) use ($search) {
             $query->where('GENERAL_DESCRIPTION', 'like', '%' . $search . '%')
-                ->orWhere('PROPERTY_NO', 'like', '%' . $search . '%');
+                  ->orWhere('PROPERTY_NO', 'like', '%' . $search . '%');
         });
     }
 
@@ -66,7 +72,16 @@ public function select(Request $request)
         ->paginate($perPage)
         ->appends($request->except('page'));
 
-    return view('FETS', compact('receivers', 'allEquipment', 'inventory', 'inProcessPropertyNos'));
+    // ✅ Fetch repair destinations from DB
+    $repairDestinations = \App\Models\RepairDestination::all();
+
+    return view('FETS', compact(
+        'receivers',
+        'allEquipment',
+        'inventory',
+        'inProcessPropertyNos',
+        'repairDestinations'
+    ));
 }
 
 
@@ -134,7 +149,7 @@ public function generate(Request $request)
         'selected'           => 'required|array|min:1|max:5',
         'transfer_movement'  => 'required|string',
         'remarks'            => 'required|string',
-        'repairer_name'      => 'nullable|string',
+        'repair_destination' => 'nullable|string|exists:repair_destinations,name', // ✅ DB-backed dropdown
         'to_receiver'        => 'nullable|string', // only for reissuance
     ]);
 
@@ -142,7 +157,7 @@ public function generate(Request $request)
     $remarks  = $validated['remarks'];
     $movement = $validated['transfer_movement'];
 
-    // 🔹 Determine receiver based on transfer movement
+    // 🔹 Determine receiver (Provincial DPSC, Head of Property, Repair Destination, etc.)
     $toPerson = $this->determineReceiver($user, $movement, $remarks, $validated);
 
     $date        = now()->format('F m, Y');
@@ -258,7 +273,8 @@ public function generate(Request $request)
                         $pdf->MultiCell(40, $lineHeight, $item->PAR_NO ?? '', 0);
 
                         $pdf->SetXY(247.5, $y);
-                        $pdf->MultiCell(40, $lineHeight, $remarks, 0);
+                        // ✅ Remarks always "Repair" if movement is For Repair
+                        $pdf->MultiCell(40, $lineHeight, ($movement === 'For Repair') ? 'Repair' : $remarks, 0);
                     }
 
                     $first = $items->first();
@@ -289,7 +305,7 @@ public function generate(Request $request)
                     foreach ($cfg['fields'] ?? [] as $field => [$x, $y]) {
                         if (in_array($field, $fieldsOnPage2)) {
                             $value = match ($field) {
-                                'fets_no'       => '',// removed
+                                'fets_no'       => '',
                                 'fets_date'     => $date,
                                 'from_office'   => $this->wrapPersonOffice($fixedOffice),
                                 'to_office'     => $this->wrapPersonOffice($fixedOffice),
@@ -317,8 +333,9 @@ public function generate(Request $request)
         $fets = FetsDocument::create([
             'property_no'       => implode(',', $validated['selected']),
             'to_receiver'       => $toPerson,
-            'remarks'           => $remarks,
+            'remarks'           => ($movement === 'For Repair') ? 'Repair' : $remarks,
             'transfer_movement' => $movement,
+            'repair_destination'=> ($movement === 'For Repair') ? $validated['repair_destination'] : null, // ✅ added
             'user_id'           => $user->id,
             'file_name'         => $fileName,
             'file_path'         => $filePath,
@@ -378,13 +395,14 @@ public function generate(Request $request)
 
             foreach ($fields as $field => [$x, $y]) {
                 $value = match ($field) {
-                    'fets_no'       => '', //removed
+                    'fets_no'       => '',
                     'fets_date'     => $date,
                     'property_no'   => $this->wrapCommaText($item->PROPERTY_NO, 20),
                     'serial_no'     => $this->wrapCommaText($item->SERIAL_NO ?? ''),
                     'description'   => $this->wrapDescription($item->GENERAL_DESCRIPTION ?? '', 80),
                     'par_no'        => $item->PAR_NO ?? '',
-                    'remarks'       => $remarks,
+                    // ✅ Remarks always "Repair" if movement is For Repair
+                    'remarks'       => ($movement === 'For Repair') ? 'Repair' : $remarks,
                     'from_office'   => $this->wrapPersonOffice($fixedOffice),
                     'to_office'     => $this->wrapPersonOffice($fixedOffice),
                     'from_person'   => $this->wrapPersonOffice($item->RECEIVER ?? ''),
@@ -409,8 +427,9 @@ public function generate(Request $request)
     $fets = FetsDocument::create([
         'property_no'       => $item->PROPERTY_NO,
         'to_receiver'       => $toPerson,
-        'remarks'           => $remarks,
+        'remarks'           => ($movement === 'For Repair') ? 'Repair' : $remarks,
         'transfer_movement' => $movement,
+        'repair_destination'=> ($movement === 'For Repair') ? $validated['repair_destination'] : null, // ✅ added
         'user_id'           => $user->id,
         'file_name'         => $fileName,
         'file_path'         => $filePath,
@@ -419,13 +438,18 @@ public function generate(Request $request)
 
     $redirectRoute = $request->has('embed') ? 'fets.select.embed' : 'fets.select';
 
-    return redirect()->route($redirectRoute)->with([
-        'success' => 'FETS submitted and PDF generated.',
-        'fets_id' => $fets->id,
-        'fets_preview_url' => route('fets.preview', ['id' => $fets->id]),
-        'fets_download_url' => route('fets.download', ['id' => $fets->id]),
-    ]);
+    return redirect()
+        ->route($redirectRoute)
+        ->with([
+            'success' => 'FETS submitted and PDF generated.',
+            'fets_id' => $fets->id,
+            'fets_preview_url' => route('fets.preview', ['id' => $fets->id]),
+            'fets_download_url' => route('fets.download', ['id' => $fets->id]),
+            'hideNavbar' => true,
+        ]);
 }
+
+
 
 
     // Helper functions
@@ -454,29 +478,32 @@ public function generate(Request $request)
 
 
 
-     private function determineReceiver($user, string $movement, string $remarks, array $validated): string
-    {
-        switch ($movement) {
-            case 'Return to Lender':
-            case 'For Surrender to Property':
-                if (strtolower($remarks) === 'serviceable') {
-                    return $this->provincialDpsc[$user->province] ?? 'Unknown Provincial DPSC';
-                }
-                return $this->headOfProperty;
+private function determineReceiver($user, string $movement, string $remarks, array $validated): string
+{
+    switch ($movement) {
+        case 'Return to Lender':
+        case 'For Surrender':
+            if (strtolower($remarks) === 'serviceable') {
+                $provinceKey = strtoupper(trim($user->province)); // normalize
+                return $this->provincialDpsc[$provinceKey] ?? 'Unknown Provincial DPSC';
+            }
+            return $this->headOfProperty;
 
-            case 'For Repair':
-                return $validated['repairer_name'] ?? 'Unknown Repairer';
+        case 'For Repair':
+            return $validated['repair_destination'] ?? 'Unknown Repair Destination';
 
-            case 'For Reissuance':
-                if (in_array($user->access_level, ['Provincial DPSC', 'Regional DPSC'])) {
-                    return $validated['to_receiver'] ?? 'Unspecified Receiver';
-                }
-                throw new \Exception('Unauthorized transfer movement for non-DPSC users.');
-
-            default:
+        case 'For Reissuance':
+            if (in_array($user->access_level, ['Provincial DPSC', 'Regional DPSC'])) {
                 return $validated['to_receiver'] ?? 'Unspecified Receiver';
-        }
-    }   
+            }
+            throw new \Exception('Unauthorized transfer movement for non-DPSC users.');
+
+        default:
+            return $validated['to_receiver'] ?? 'Unspecified Receiver';
+    }
+}
+
+
 
  public function reviewSubmitted()
 {
@@ -621,29 +648,35 @@ public function approve($id)
     $propertyNumbers = array_map('trim', explode(',', $fets->property_no));
 
     foreach ($propertyNumbers as $propNo) {
-        // Clean up spaces inside property number for accurate matching
         $cleanedPropNo = preg_replace('/\s+/', '', $propNo);
 
+        // 🔹 If movement is "For Repair", send to repair_destination
+        $newReceiver = ($fets->transfer_movement === 'For Repair')
+            ? $fets->repair_destination
+            : $fets->to_receiver;
+
+            
         DB::table('inventory')
             ->whereRaw("REPLACE(TRIM(PROPERTY_NO), ' ', '') = ?", [$cleanedPropNo])
             ->update([
-                'RECEIVER' => $fets->to_receiver,
+                'RECEIVER' => $newReceiver,
                 'DPO_REMARKS' => DB::raw("CONCAT(IFNULL(DPO_REMARKS, ''), ' | Approved via FETS ID " . $fets->id . "')"),
                 'updated_at' => now(),
             ]);
     }
 
     // Log this approval
- FetsLog::create([
-     'property_no' => $fets->property_no,
-     'action'      => 'approved',
-     'actor'       => auth()->user()->fullname,
-     'actor_role'  => auth()->user()->access_level,
-     'remarks'     => "FETS #{$fets->id} approved by regional DPSC",
- ]);
+    FetsLog::create([
+        'property_no' => $fets->property_no,
+        'action'      => 'approved',
+        'actor'       => auth()->user()->fullname,
+        'actor_role'  => auth()->user()->access_level,
+        'remarks'     => "FETS #{$fets->id} approved by regional DPSC",
+    ]);
 
     return back()->with('success', 'FETS document approved successfully.');
 }
+
 
 
 
