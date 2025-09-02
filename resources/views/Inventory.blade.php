@@ -80,10 +80,10 @@
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mt-4">
                 <div class="p-6 text-gray-900">
 
-                    <!-- ✅ Label for Inventory -->
-                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Inventory</h2>
+                    <!-- Label for Inventory -->
+                    <h2 class="text-4xl font-bold text-gray-800 mb-4">INVENTORY</h2>
 
-                    <!-- ✅ FILTER FORM -->
+                    <!-- FILTER FORM -->
                     <form method="GET" action="{{ route(Route::currentRouteName()) }}" class="mb-4 flex flex-wrap items-center gap-4">
                         <div>
                             <input type="text" name="search" value="{{ request('search') }}"
