@@ -43,7 +43,17 @@
                         <div>
                             <h2 class="text-2xl font-bold text-[#2e3192] mb-1">{{ auth()->user()->fullname }}</h2>
                             <p class="text-gray-600 mb-1">{{ auth()->user()->company_id }}</p>
-                            <p class="text-black font-medium mb-4">{{ auth()->user()->access_level }}</p>
+                            <p class="text-black font-medium mb-4">
+                                @if(auth()->user()->access_level === 'Provincial DPSC')
+                                    Provincial DPSC - {{ strtoupper(auth()->user()->province ?? 'N/A') }}
+                                @elseif(auth()->user()->access_level === 'Regional DPSC')
+                                    Regional DPSC - {{ strtoupper(auth()->user()->region ?? 'N/A') }}
+                                @elseif(auth()->user()->access_level === 'Superadmin')
+                                    Superadmin
+                                @else
+                                    {{ auth()->user()->access_level }}
+                                @endif
+                            </p>
                         </div>
                     </div>
 

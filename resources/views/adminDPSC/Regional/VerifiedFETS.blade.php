@@ -40,8 +40,8 @@
                                 <td class="px-6 py-4 text-sm text-center text-gray-600 max-w-xs truncate">
                                     {{ $doc->remarks ?? 'None' }}
                                 </td>
-                                <td class="flex justify-center items-center px-6 py-4 whitespace-nowrap">
-                                    <span class="px-3 py-1 text-xs leading-5 font-semibold rounded-full 
+                                <td class="flex-col justify-center items-center text-center px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-block px-3 py-1 text-xs leading-5 font-semibold rounded-full 
                                         @if($doc->status === 'verified') bg-purple-100 text-purple-800
                                         @else bg-blue-100 text-blue-800 @endif">
                                         {{ ucfirst($doc->status) }}

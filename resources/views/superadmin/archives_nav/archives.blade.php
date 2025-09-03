@@ -11,8 +11,8 @@
     </div>
     @endif
 
-    <div class="py-12" id="main-content">
-        <div class="max-w-full mx-auto sm:px-6 lg:px-8">
+    <div class="py-6" id="main-content">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
             <div class="flex justify-between items-center mt-4 mb-4">
                 <!-- Search Filter -->
