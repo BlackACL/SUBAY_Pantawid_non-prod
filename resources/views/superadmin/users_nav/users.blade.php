@@ -29,11 +29,7 @@
                 <!-- Search Filter -->
                 <div class="max-w-md">
                     <form method="GET" action="{{ route('users') }}" class="flex gap-2">
-<<<<<<< HEAD
-                        <div class="relative w-64">
-=======
                         <div class="relative w-96">
->>>>>>> origin/my-version
                             <input type="text" name="search" id="searchInput" placeholder="Search by Company ID or Full Name..." 
                                    value="{{ request('search') }}"
                                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -433,11 +429,7 @@
                         </div>
                         <!-- User Info -->
                         <div>
-<<<<<<< HEAD
-                            <h2 class="text-2xl font-bold text-gray-900 mb-1">${user.fullname}</h2>
-=======
                             <h2 class="text-2xl font-bold text-[#2e3192] mb-1">${user.fullname}</h2>
->>>>>>> origin/my-version
                             <p class="text-gray-600 mb-1">${user.company_id}</p>
                             <p class="text-black font-medium mb-4">${user.access_level}</p>
                         </div>
