@@ -11,12 +11,11 @@
     <div class="py-12 max-w-7xl mx-auto sm:px-6 lg:px-8">
         <div class="bg-white p-6 shadow-sm rounded-lg">
 
-            {{-- ✅ Success --}}
+            {{-- Success --}}
             @if(session('success'))
                 <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">
                     <strong class="font-bold">Success!</strong>
                     <span class="block sm:inline">{{ session('success') }}</span>
-
                     @if(session('fets_id'))
                         <div class="mt-3 flex gap-3">
                             <a href="{{ route('fets.download', ['id' => session('fets_id')]) }}"
@@ -33,7 +32,7 @@
                 </div>
             @endif
 
-            {{-- ✅ Errors --}}
+            {{-- Errors --}}
             @if(session('error'))
                 <div class="bg-red-100 border border-red-400 text-red-700 p-3 mb-4 rounded">
                     {{ session('error') }}
@@ -50,20 +49,17 @@
                 </div>
             @endif
 
-            {{-- FILTER --}}
+            {{-- Filter --}}
             <form method="GET" action="{{ route('fets.select') }}" class="mb-4 flex gap-4 flex-wrap" id="filterForm">
                 <div class="mb-4 flex gap-4 flex-wrap">
                     <input type="text" name="search" value="{{ request('search') }}"
                            placeholder="Search by Description, or Property No..."
                            class="border-gray-300 rounded-md shadow-sm text-sm p-2 w-72">
-
                     <input type="hidden" name="to_receiver" id="hidden_receiver">
-
                     <button type="submit"
                             class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
                         🔍
                     </button>
-
                     @if(request('search'))
                         <a href="{{ route('fets.select', ['to_receiver' => request('to_receiver')]) }}"
                            class="bg-gray-500 hover:bg-gray-600 text-white text-sm px-4 py-2 rounded">
@@ -73,7 +69,7 @@
                 </div>
             </form>
 
-            {{-- FORM --}}
+            {{-- Form --}}
             <form action="{{ route('fets.generate') }}" method="POST">
                 @csrf
 
@@ -82,29 +78,24 @@
                     <label class="block font-medium text-sm text-gray-700">Transfer Movement</label>
                     <select id="transfer_movement" name="transfer_movement" required
                             class="w-full border rounded p-2 text-sm">
-                        <option value="" disabled {{ old('transfer_movement') ? '' : 'selected' }}>
-                            -- Select Transfer Movement --
-                        </option>
-                        <option value="Return to Lender" {{ old('transfer_movement') == 'Return to Lender' ? 'selected' : '' }}>
-                            Return to Lender
-                        </option>
-                        <option value="For Surrender" {{ old('transfer_movement') == 'For Surrender' ? 'selected' : '' }}>
-                            For Surrender
-                        </option>
-                        <option value="For Repair" {{ old('transfer_movement') == 'For Repair' ? 'selected' : '' }}>
-                            For Repair
-                        </option>
+                        <option value="" disabled {{ old('transfer_movement') ? '' : 'selected' }}>-- Select Transfer Movement --</option>
+                        <option value="Return to Lender" {{ old('transfer_movement') == 'Return to Lender' ? 'selected' : '' }}>Return to Lender</option>
+                        <option value="For Surrender" {{ old('transfer_movement') == 'For Surrender' ? 'selected' : '' }}>For Surrender</option>
+                        <option value="For Repair" {{ old('transfer_movement') == 'For Repair' ? 'selected' : '' }}>For Repair</option>
                     </select>
+                    <p class="text-xs text-gray-600 mt-1">
+                        <strong>Serviceable:</strong> {{ $provincialDisplay }} <br>
+                        <strong>Unserviceable:</strong> {{ $headOfPropertyDisplay }} <br>
+                        <strong>Repair:</strong> Selected Repair Destination
+                    </p>
                 </div>
 
-                {{-- Repair Destination (conditional) --}}
+                {{-- Repair Destination --}}
                 <div id="repair_destination_wrapper"
                      class="mb-4 {{ old('transfer_movement') == 'For Repair' ? '' : 'hidden' }}">
                     <label class="block font-medium text-sm text-gray-700">Repair Destination</label>
                     <select id="repair_destination" name="repair_destination" class="w-full border rounded p-2 text-sm">
-                        <option value="" disabled {{ old('repair_destination') ? '' : 'selected' }}>
-                            -- Select Repair Destination --
-                        </option>
+                        <option value="" disabled {{ old('repair_destination') ? '' : 'selected' }}>-- Select Repair Destination --</option>
                         @foreach($repairDestinations as $dest)
                             <option value="{{ $dest->name }}" {{ old('repair_destination') == $dest->name ? 'selected' : '' }}>
                                 {{ $dest->name }}
@@ -113,7 +104,7 @@
                     </select>
                 </div>
 
-                {{-- Receiver (auto-filled) --}}
+                {{-- Receiver --}}
                 <div class="mb-4">
                     <label class="block font-medium text-sm text-gray-700">To Accountable Person</label>
                     <input type="text" id="to_receiver_display"
@@ -154,10 +145,8 @@
                         <tbody>
                         @forelse ($inventory as $item)
                             @php
-                                // Determine if the device should be locked
                                 $isLocked = in_array($item->PROPERTY_NO, $inProcessPropertyNos ?? []) 
                                             || ($item->STATUS ?? null) === 'Being Assessed for Repair';
-                                // Status text for locked devices
                                 $statusText = ($item->STATUS ?? null) === 'Being Assessed for Repair'
                                     ? 'Being Assessed for Repair'
                                     : ($isLocked ? 'FETS in Process' : '');
@@ -182,9 +171,22 @@
                 </div>
 
                 {{-- Submit --}}
-                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm">
+                @php
+                    $canSubmit = $provincialDisplay !== 'Provincial DPSC - Not Assigned' &&
+                                 $headOfPropertyDisplay !== 'Head of Property - Not Assigned';
+                @endphp
+                <button type="submit"
+                        id="submitBtn"
+                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm {{ $canSubmit ? '' : 'opacity-50 cursor-not-allowed' }}"
+                        {{ $canSubmit ? '' : 'disabled' }}>
                     Submit FETS Request
                 </button>
+                @if(!$canSubmit)
+                    <div class="text-red-600 mt-2">
+                        ⚠️ FETS submission blocked: Missing Provincial DPSC or Head of Property. Contact Superadmin.
+                    </div>
+                @endif
+
             </form>
         </div>
     </div>
@@ -206,7 +208,7 @@
         document.addEventListener('DOMContentLoaded', updateCheckboxState);
     </script>
 
-    {{-- Transfer Movement Logic --}}
+    {{-- Transfer Movement Logic + Disable Submit if Missing Officials --}}
     <script>
         const movementSelect = document.getElementById('transfer_movement');
         const remarksSelect = document.getElementById('remarks');
@@ -215,6 +217,11 @@
         const repairSelect = document.getElementById('repair_destination');
         const toReceiverHidden = document.getElementById('to_receiver');
         const toReceiverDisplay = document.getElementById('to_receiver_display');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // Officials existence
+        const hasProvincial = @json($provincialDisplay !== 'Provincial DPSC - Not Assigned');
+        const hasHead = @json($headOfPropertyDisplay !== 'Head of Property - Not Assigned');
 
         function updateReceiver() {
             const movement = movementSelect.value;
@@ -246,6 +253,14 @@
                     toReceiverDisplay.value = '(auto-filled based on Transfer Movement + Remarks)';
                 }
             }
+
+            // Disable submit if officials missing
+            submitBtn.disabled = !hasProvincial || !hasHead;
+            if (!hasProvincial || !hasHead) {
+                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
         }
 
         movementSelect.addEventListener('change', updateReceiver);
@@ -253,6 +268,7 @@
         repairSelect.addEventListener('change', function () {
             toReceiverHidden.value = this.value;
             toReceiverDisplay.value = this.value;
+            updateReceiver();
         });
 
         document.addEventListener('DOMContentLoaded', updateReceiver);

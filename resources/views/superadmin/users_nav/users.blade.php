@@ -52,18 +52,19 @@
                     </form>
                 </div>
                 
-                <!-- Add User Button -->
-                <div class="ml-4">
-                    <button onclick="openModal()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">
-                        <i class="fas fa-user-plus"></i>
-                        {{ __('Add User') }}
-                    </button>
-                    <!-- Import Profiles -->
-                    <button onclick="openImportModal()" 
-                        class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg transition">
-                        <i class="fas fa-file-upload"></i> {{ __('Import Profiles') }}
-                    </button>
-                </div>
+<!-- Add User Button -->
+<div class="ml-4 flex gap-2">
+    <button onclick="openModal()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">
+        <i class="fas fa-user-plus"></i>
+        {{ __('Add User') }}
+    </button>
+    <!-- Import Profiles -->
+    <button onclick="openImportModal()" 
+        class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg transition">
+        <i class="fas fa-file-upload"></i> {{ __('Import Profiles') }}
+    </button>
+</div>
+
             </div>
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
                 <div class="overflow-x-auto">

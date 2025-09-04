@@ -75,14 +75,39 @@ public function select(Request $request)
     // ✅ Fetch repair destinations from DB
     $repairDestinations = \App\Models\RepairDestination::all();
 
+    // ✅ Normalize province from user model (Option A)
+    $normalizedProvince = strtolower(trim($user->province ?? ''));
+
+    $provincialOfficial = \App\Models\Official::where('role', 'Provincial DPSC')
+        ->whereRaw('LOWER(province) = ?', [$normalizedProvince])
+        ->where('active', true)
+        ->first();
+
+    // ✅ Fetch Head of Property (active one only)
+    $headOfProperty = \App\Models\Official::where('role', 'Head of Property')
+        ->where('active', true)
+        ->first();
+
+    // ✅ Fallbacks if not assigned
+    $provincialDisplay = $provincialOfficial
+        ? "Provincial DPSC - {$provincialOfficial->fullname}"
+        : "Provincial DPSC - Not Assigned";
+
+    $headOfPropertyDisplay = $headOfProperty
+        ? "Head of Property - {$headOfProperty->fullname}"
+        : "Head of Property - Not Assigned";
+
     return view('FETS', compact(
         'receivers',
         'allEquipment',
         'inventory',
         'inProcessPropertyNos',
-        'repairDestinations'
+        'repairDestinations',
+        'provincialDisplay',
+        'headOfPropertyDisplay'
     ));
 }
+
 
 
 public function selectEmbed(Request $request)
@@ -160,6 +185,29 @@ public function generate(Request $request)
     $user     = auth()->user();
     $remarks  = $validated['remarks'];
     $movement = $validated['transfer_movement'];
+
+// 🔹 Check required officials before proceeding
+$normalizedProvince = strtolower(trim($user->province ?? ''));
+$provincialDpsc = \App\Models\Official::where('role', 'Provincial DPSC')
+    ->whereRaw('LOWER(province) = ?', [$normalizedProvince])
+    ->where('active', true)
+    ->first();
+$headOfProperty = \App\Models\Official::where('role', 'Head of Property')
+    ->where('active', true)
+    ->first();
+
+$errors = [];
+if (!$provincialDpsc) {
+    $errors[] = 'No Provincial DPSC assigned for your province. Contact Superadmin.';
+}
+if (!$headOfProperty) {
+    $errors[] = 'No Head of Property assigned. Contact Superadmin.';
+}
+
+if (!empty($errors)) {
+    return back()->with('error', implode(' | ', $errors));
+}
+
 
     // 🔹 Determine receiver (Provincial DPSC, Head of Property, Repair Destination, etc.)
     $toPerson = $this->determineReceiver($user, $movement, $remarks, $validated);
@@ -484,17 +532,27 @@ public function generate(Request $request)
 
 private function determineReceiver($user, string $movement, string $remarks, array $validated): string
 {
+    // ✅ Handle mapping via DB instead of hardcoded array
+    $official = null;
+
     switch ($movement) {
         case 'Return to Lender':
         case 'For Surrender':
             if (strtolower($remarks) === 'serviceable') {
-                $provinceKey = strtoupper(trim($user->province)); // normalize
-                return $this->provincialDpsc[$provinceKey] ?? 'Unknown Provincial DPSC';
+                $official = \App\Models\Official::where('province', $user->province)
+                    ->where('role', 'Provincial DPSC')
+                    ->where('active', true)
+                    ->first();
+                return $official?->fullname ?? '[ERROR: Provincial DPSC missing for '.$user->province.']';
             }
-            return $this->headOfProperty;
+
+            $official = \App\Models\Official::where('role', 'Head of Property')
+                ->where('active', true)
+                ->first();
+            return $official?->fullname ?? '[ERROR: Head of Property missing]';
 
         case 'For Repair':
-            return $validated['repair_destination'] ?? 'Unknown Repair Destination';
+            return $validated['repair_destination'] ?? '[ERROR: Repair destination missing]';
 
         case 'For Reissuance':
             if (in_array($user->access_level, ['Provincial DPSC', 'Regional DPSC'])) {
@@ -509,8 +567,9 @@ private function determineReceiver($user, string $movement, string $remarks, arr
 
 
 
+
  public function reviewSubmitted()
-{
+{   
     $documents = FetsDocument::where('status', 'submitted')
         ->orderByDesc('created_at')
         ->paginate(10);

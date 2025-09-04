@@ -160,7 +160,7 @@
                                         <th class="px-4 py-2 text-white border">SERIAL</th>
                                         <th class="px-4 py-2 text-white border">RECEIVER</th>
                                         <th class="px-4 py-2 text-white border">OFFICE</th>
-                                        <th class="px-4 py-2 text-white border">STATUS</th>
+                                        <th class="px-4 py-2 text-white border">PAR NO</th>
                                     </tr>
                                 </thead>
                                 <tbody>
