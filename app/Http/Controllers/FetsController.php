@@ -11,6 +11,7 @@ use setasign\Fpdi\Fpdi;
 use App\Models\FetsLog;
 use App\Models\Inventory;
 use Illuminate\Support\Facades\Log;
+use App\Models\Official;
 
 
 class FetsController extends Controller
@@ -178,36 +179,58 @@ public function generate(Request $request)
         'selected'           => 'required|array|min:1|max:5',
         'transfer_movement'  => 'required|string',
         'remarks'            => 'required|string',
-        'repair_destination' => 'nullable|string|exists:repair_destinations,name', // ✅ DB-backed dropdown
-        'to_receiver'        => 'nullable|string', // only for reissuance
+        'repair_destination' => 'nullable|string|exists:repair_destinations,name',
+        'to_receiver'        => 'nullable|string',
     ]);
 
     $user     = auth()->user();
     $remarks  = $validated['remarks'];
     $movement = $validated['transfer_movement'];
 
-// 🔹 Check required officials before proceeding
-$normalizedProvince = strtolower(trim($user->province ?? ''));
-$provincialDpsc = \App\Models\Official::where('role', 'Provincial DPSC')
-    ->whereRaw('LOWER(province) = ?', [$normalizedProvince])
-    ->where('active', true)
-    ->first();
-$headOfProperty = \App\Models\Official::where('role', 'Head of Property')
-    ->where('active', true)
-    ->first();
+    // 🔹 Officials lookup
+    $normalizedProvince = strtolower(trim($user->province ?? ''));
+    $provincialDpsc = \App\Models\Official::where('role', 'Provincial DPSC')
+        ->whereRaw('LOWER(province) = ?', [$normalizedProvince])
+        ->where('active', true)
+        ->first();
+    $headOfProperty = \App\Models\Official::where('role', 'Head of Property')
+        ->where('active', true)
+        ->first();
+    $regionalDpsc = \App\Models\Official::where('role', 'Regional DPSC')
+        ->where('active', true)
+        ->first();
 
-$errors = [];
-if (!$provincialDpsc) {
-    $errors[] = 'No Provincial DPSC assigned for your province. Contact Superadmin.';
-}
-if (!$headOfProperty) {
-    $errors[] = 'No Head of Property assigned. Contact Superadmin.';
-}
+    // 🔹 Recommending & Approving (DB-backed roles)
+    $recommendingOfficial = \App\Models\Official::where('role', 'Recommending')
+        ->where('active', true)
+        ->first();
+    $approvingOfficial = \App\Models\Official::where('role', 'Approving')
+        ->where('active', true)
+        ->first();
 
-if (!empty($errors)) {
-    return back()->with('error', implode(' | ', $errors));
-}
+    $errors = [];
+    if (!$provincialDpsc) {
+        $errors[] = 'No Provincial DPSC assigned for your province. Contact Superadmin.';
+    }
+    if (!$headOfProperty) {
+        $errors[] = 'No Head of Property assigned. Contact Superadmin.';
+    }
+    if (!$regionalDpsc) {
+        $errors[] = 'No Regional DPSC assigned. Contact Superadmin.';
+    }
+    if (!$recommendingOfficial) {
+        $errors[] = 'No Recommending official assigned. Contact Superadmin.';
+    }
+    if (!$approvingOfficial) {
+        $errors[] = 'No Approving official assigned. Contact Superadmin.';
+    }
+    if (!empty($errors)) {
+        return back()->with('error', implode(' | ', $errors));
+    }
 
+    // 🔹 Use dynamic names instead of hardcoded
+    $recommendingName = $recommendingOfficial->fullname;
+    $approvingName    = $approvingOfficial->fullname;
 
     // 🔹 Determine receiver (Provincial DPSC, Head of Property, Repair Destination, etc.)
     $toPerson = $this->determineReceiver($user, $movement, $remarks, $validated);
@@ -325,7 +348,6 @@ if (!empty($errors)) {
                         $pdf->MultiCell(40, $lineHeight, $item->PAR_NO ?? '', 0);
 
                         $pdf->SetXY(247.5, $y);
-                        // ✅ Remarks always "Repair" if movement is For Repair
                         $pdf->MultiCell(40, $lineHeight, ($movement === 'For Repair') ? 'Repair' : $remarks, 0);
                     }
 
@@ -333,7 +355,7 @@ if (!empty($errors)) {
                     foreach ($cfg['fields'] ?? [] as $field => [$x, $y]) {
                         if (!in_array($field, $fieldsOnPage2)) {
                             $value = match ($field) {
-                                'fets_no'       => '', // removed
+                                'fets_no'       => '',
                                 'fets_date'     => $date,
                                 'from_office'   => $this->wrapPersonOffice($fixedOffice),
                                 'to_office'     => $this->wrapPersonOffice($fixedOffice),
@@ -341,8 +363,8 @@ if (!empty($errors)) {
                                 'to_person'     => $this->wrapPersonOffice($toPerson),
                                 'requested_by'  => $this->wrapPersonOffice($first->RECEIVER ?? ''),
                                 'received_by'   => $this->wrapPersonOffice($toPerson),
-                                'recommending'  => 'Margie Cabido-Sobretodo',
-                                'approving'     => 'Mia Dulce Corazon V. Monesit',
+                                'recommending'  => $this->wrapPersonOffice($recommendingName),
+                                'approving'     => $this->wrapPersonOffice($approvingName),
                                 default         => '',
                             };
 
@@ -365,8 +387,8 @@ if (!empty($errors)) {
                                 'to_person'     => $this->wrapPersonOffice($toPerson),
                                 'requested_by'  => $this->wrapPersonOffice($first->RECEIVER ?? ''),
                                 'received_by'   => $this->wrapPersonOffice($toPerson),
-                                'recommending'  => 'Margie Cabido-Sobretodo',
-                                'approving'     => 'Mia Dulce Corazon V. Monesit',
+                                'recommending'  => $this->wrapPersonOffice($recommendingName),
+                                'approving'     => $this->wrapPersonOffice($approvingName),
                                 default         => '',
                             };
 
@@ -387,7 +409,7 @@ if (!empty($errors)) {
             'to_receiver'       => $toPerson,
             'remarks'           => ($movement === 'For Repair') ? 'Repair' : $remarks,
             'transfer_movement' => $movement,
-            'repair_destination'=> ($movement === 'For Repair') ? $validated['repair_destination'] : null, // ✅ added
+            'repair_destination'=> ($movement === 'For Repair') ? $validated['repair_destination'] : null,
             'user_id'           => $user->id,
             'file_name'         => $fileName,
             'file_path'         => $filePath,
@@ -453,7 +475,6 @@ if (!empty($errors)) {
                     'serial_no'     => $this->wrapCommaText($item->SERIAL_NO ?? ''),
                     'description'   => $this->wrapDescription($item->GENERAL_DESCRIPTION ?? '', 80),
                     'par_no'        => $item->PAR_NO ?? '',
-                    // ✅ Remarks always "Repair" if movement is For Repair
                     'remarks'       => ($movement === 'For Repair') ? 'Repair' : $remarks,
                     'from_office'   => $this->wrapPersonOffice($fixedOffice),
                     'to_office'     => $this->wrapPersonOffice($fixedOffice),
@@ -461,8 +482,8 @@ if (!empty($errors)) {
                     'to_person'     => $this->wrapPersonOffice($toPerson),
                     'requested_by'  => $this->wrapPersonOffice($item->RECEIVER ?? ''),
                     'received_by'   => $this->wrapPersonOffice($toPerson),
-                    'recommending'  => 'Margie Cabido-Sobretodo',
-                    'approving'     => 'Mia Dulce Corazon V. Monesit',
+                    'recommending'  => $this->wrapPersonOffice($recommendingName),
+                    'approving'     => $this->wrapPersonOffice($approvingName),
                     default         => '',
                 };
 
@@ -481,7 +502,7 @@ if (!empty($errors)) {
         'to_receiver'       => $toPerson,
         'remarks'           => ($movement === 'For Repair') ? 'Repair' : $remarks,
         'transfer_movement' => $movement,
-        'repair_destination'=> ($movement === 'For Repair') ? $validated['repair_destination'] : null, // ✅ added
+        'repair_destination'=> ($movement === 'For Repair') ? $validated['repair_destination'] : null,
         'user_id'           => $user->id,
         'file_name'         => $fileName,
         'file_path'         => $filePath,
@@ -500,6 +521,7 @@ if (!empty($errors)) {
             'hideNavbar' => true,
         ]);
 }
+
 
 
 
@@ -532,38 +554,60 @@ if (!empty($errors)) {
 
 private function determineReceiver($user, string $movement, string $remarks, array $validated): string
 {
-    // ✅ Handle mapping via DB instead of hardcoded array
-    $official = null;
+    // Normalize user province
+    $province = strtolower(trim($user->province ?? ''));
 
+    // Handle different movements
     switch ($movement) {
+
         case 'Return to Lender':
         case 'For Surrender':
+            // Serviceable → Provincial DPSC
             if (strtolower($remarks) === 'serviceable') {
-                $official = \App\Models\Official::where('province', $user->province)
-                    ->where('role', 'Provincial DPSC')
+                $provincialDpsc = \App\Models\Official::where('role', 'Provincial DPSC')
+                    ->whereRaw('LOWER(province) = ?', [$province])
                     ->where('active', true)
                     ->first();
-                return $official?->fullname ?? '[ERROR: Provincial DPSC missing for '.$user->province.']';
+
+                if ($provincialDpsc) {
+                    return $provincialDpsc->fullname;
+                }
+
+                return "[ERROR: No active Provincial DPSC assigned for {$user->province}]";
             }
 
-            $official = \App\Models\Official::where('role', 'Head of Property')
+            // Unserviceable → Head of Property
+            $headOfProperty = \App\Models\Official::where('role', 'Head of Property')
                 ->where('active', true)
                 ->first();
-            return $official?->fullname ?? '[ERROR: Head of Property missing]';
+
+            if ($headOfProperty) {
+                return $headOfProperty->fullname;
+            }
+
+            return "[ERROR: No active Head of Property found]";
 
         case 'For Repair':
-            return $validated['repair_destination'] ?? '[ERROR: Repair destination missing]';
+            // Must provide repair_destination via form (DB-backed dropdown)
+            if (!empty($validated['repair_destination'])) {
+                return $validated['repair_destination'];
+            }
+            return "[ERROR: Repair destination missing]";
 
         case 'For Reissuance':
+            // Only DPSC users can reissue
             if (in_array($user->access_level, ['Provincial DPSC', 'Regional DPSC'])) {
-                return $validated['to_receiver'] ?? 'Unspecified Receiver';
+                return $validated['to_receiver'] ?? '[ERROR: Receiver not specified for reissuance]';
             }
+
             throw new \Exception('Unauthorized transfer movement for non-DPSC users.');
 
         default:
-            return $validated['to_receiver'] ?? 'Unspecified Receiver';
+            // Fallback to manually provided receiver (if any)
+            return $validated['to_receiver'] ?? '[ERROR: Receiver not specified]';
     }
 }
+
 
 
 
@@ -710,11 +754,31 @@ public function approve($id)
     // Handle multiple property numbers (comma-separated)
     $propertyNumbers = array_map('trim', explode(',', $fets->property_no));
 
+    // 🔹 Determine the correct DPSC official as receiver
+    $dpscOfficial = null;
+
+    if ($fets->transfer_movement === 'Regional Approval') {
+        // For regional approval, find active Regional DPSC for the employee's region
+        $dpscOfficial = Official::where('role', 'Regional DPSC')
+            ->where('province', $fets->region)
+            ->where('active', true)
+            ->first();
+    } else {
+        // For provincial approval, find active Provincial DPSC for the employee's province
+        $dpscOfficial = Official::where('role', 'Provincial DPSC')
+            ->where('province', $fets->province)
+            ->where('active', true)
+            ->first();
+    }
+
+    // Use the official's fullname as the receiver
+    $receiverName = $dpscOfficial ? $dpscOfficial->fullname : $fets->to_receiver;
+
     foreach ($propertyNumbers as $propNo) {
         $cleanedPropNo = preg_replace('/\s+/', '', $propNo);
 
         if ($fets->transfer_movement === 'For Repair') {
-            // 🔹 Lock device and set status to Being Assessed for Repair
+            // Lock device and set status to Being Assessed for Repair
             DB::table('inventory')
                 ->whereRaw("REPLACE(TRIM(PROPERTY_NO), ' ', '') = ?", [$cleanedPropNo])
                 ->update([
@@ -723,11 +787,11 @@ public function approve($id)
                     'updated_at' => now(),
                 ]);
         } else {
-            // 🔹 Regular approval: update receiver
+            // Regular approval: update receiver to DPSC official
             DB::table('inventory')
                 ->whereRaw("REPLACE(TRIM(PROPERTY_NO), ' ', '') = ?", [$cleanedPropNo])
                 ->update([
-                    'RECEIVER' => $fets->to_receiver,
+                    'RECEIVER' => $receiverName,
                     'DPO_REMARKS' => DB::raw("CONCAT(IFNULL(DPO_REMARKS, ''), ' | Approved via FETS ID {$fets->id}')"),
                     'updated_at' => now(),
                 ]);
@@ -742,12 +806,11 @@ public function approve($id)
         'actor_role'  => auth()->user()->access_level,
         'remarks'     => ($fets->transfer_movement === 'For Repair')
             ? "FETS #{$fets->id} approved for repair assessment to {$fets->repair_destination}"
-            : "FETS #{$fets->id} approved by regional DPSC",
+            : "FETS #{$fets->id} approved by Regional DPSC, assigned to {$receiverName}",
     ]);
 
     return back()->with('success', 'FETS document approved successfully.');
 }
-
 
 
 

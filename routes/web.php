@@ -5,8 +5,8 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TwoFactorCodeController;
+use App\Http\Controllers\OfficialController;
 use App\Models\ImportProgress;
-
 
 // Redirect root to login
 Route::get('/', fn () => redirect('login'));
@@ -31,18 +31,27 @@ Route::middleware('auth')->group(function () {
 
 // 🔐 SUPERADMIN Routes
 Route::middleware(['auth', 'role:superadmin', 'verified', 'twofactor'])->group(function () {
-Route::get('/logs', [App\Http\Controllers\ActivityLogController::class, 'index'])->name('superadmin.logs_nav.logs');
+    // Existing SuperAdmin routes
+    Route::get('/logs', [App\Http\Controllers\ActivityLogController::class, 'index'])->name('superadmin.logs_nav.logs');
     Route::get('/users', [UserController::class, 'index'])->name('users');
     Route::post('/users/addusers', [UserController::class, 'store'])->name('addusers.store');
     Route::get('/users/{user}/profile', [UserController::class, 'showProfile'])->name('users.profile');
     Route::get('/archives', [UserController::class, 'archives'])->name('archives');
     Route::post('/users/{user}/archive', [UserController::class, 'archive'])->name('users.archive');
     Route::post('/users/{user}/unarchive', [UserController::class, 'unarchive'])->name('users.unarchive');
+
+    // ✅ Officials Management
+    Route::get('/officials', [OfficialController::class, 'index'])->name('officials.index');
+    Route::post('/officials/update/{activeId?}', [OfficialController::class, 'update'])->name('officials.update');
+    Route::get('/officials/history/{role}/{province?}', [OfficialController::class, 'history'])->name('officials.history');
+
+    // 🔹 Reactivate Historical Official
+    Route::post('/officials/reactivate/{id}', [OfficialController::class, 'reactivate'])->name('officials.reactivate');
 });
 
 // 🟣 REGIONAL DPSC Routes
 Route::middleware(['auth', 'role:Regional DPSC', 'verified', 'twofactor'])->group(function () {
-    Route::get('/Regional/VerifiedFETS', [FetsController::class, 'showVerifiedRegional'])->name('Regional.VerifiedFETS'); // ✅ FIXED
+    Route::get('/Regional/VerifiedFETS', [FetsController::class, 'showVerifiedRegional'])->name('Regional.VerifiedFETS');
     Route::get('/Regional/ApprovedFETS', [FetsController::class, 'showForApproval'])->name('Regional.ApprovedFETS');
     Route::get('/Regional/MyInventory', [InventoryController::class, 'showMyInventory'])->name('Regional.MyInventory');
     Route::patch('/Regional/FETSrequest/{id}/approve', [FetsController::class, 'approve'])->name('fets.approve');
@@ -60,18 +69,15 @@ Route::middleware(['auth', 'role:Provincial DPSC', 'verified', 'twofactor'])->gr
 // 📦 Inventory Management (All Roles)
 Route::middleware(['auth', 'verified', 'twofactor'])->group(function () {
     Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
-    // Show the form to upload a new CSV file containing inventory data
     Route::get('/inventory/upload', [InventoryController::class, 'showUploadForm'])->name('inventory.upload');
-    // Process the uploaded CSV file and store the inventory data in the database
     Route::post('/inventory/upload', [InventoryController::class, 'upload'])->name('inventory.upload.submit');
     Route::get('/inventory/export', [InventoryController::class, 'export'])->name('inventory.export');
 });
 
-
 // Employee Inventory View
 Route::get('/Inventory', [InventoryController::class, 'showEmployeeInventory'])
     ->middleware(['auth', 'role:Employee', 'verified', 'twofactor'])
-    ->name('Inventory');;
+    ->name('Inventory');
 
 // 📄 FETS File Access Routes
 Route::get('/SubmittedFETS', [FetsController::class, 'submittedFets'])
@@ -110,6 +116,5 @@ Route::post('/users/import', [UserController::class, 'import'])->name('users.imp
 Route::get('/import/progress', function () {
     return \App\Models\ImportProgress::where('type', 'fets_import')->first();
 });
-
 
 require __DIR__ . '/auth.php';

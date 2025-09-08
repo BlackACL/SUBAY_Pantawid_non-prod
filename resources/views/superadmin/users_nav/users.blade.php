@@ -52,18 +52,30 @@
                     </form>
                 </div>
                 
-<!-- Add User Button -->
+<!-- Add User / Officials Buttons -->
 <div class="ml-4 flex gap-2">
-    <button onclick="openModal()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">
+    <!-- Add User Button -->
+    <button onclick="openModal()" 
+        class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">
         <i class="fas fa-user-plus"></i>
         {{ __('Add User') }}
     </button>
+
     <!-- Import Profiles -->
     <button onclick="openImportModal()" 
         class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg transition">
         <i class="fas fa-file-upload"></i> {{ __('Import Profiles') }}
     </button>
+
+    <!-- Add Official Button (links to index.blade.php for officials) -->
+    <a href="{{ route('officials.index') }}" 
+        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-1">
+        <i class="fas fa-user-shield"></i>
+        {{ __('Modify Official') }}
+    </a>
 </div>
+
+
 
             </div>
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
