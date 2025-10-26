@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="overflow-hidden h-screen">
 
 <head>
     <meta charset="utf-8">
@@ -17,25 +17,24 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-<body class="font-sans antialiased">
-    <div class="min-h-screen bg-gray-100">
-        @if(empty($hideNavbar) || !$hideNavbar)
+<body class="font-sans antialiased overflow-hidden h-screen">
+    <div class="h-screen flex bg-gray-100 flex-nowrap">
             @include('layouts.navigation')
-        @endif
+            <div class="flex-1 flex flex-col overflow-hidden">
+                <!-- Page Heading -->
+                @if (isset($header))
+                    <header class="bg-white shadow">
+                        <div class="w-full py-6 px-4 sm:px-6 lg:px-8">
+                            {{ $header }}
+                        </div>
+                    </header>
+                @endif
 
-        <!-- Page Heading -->
-        @if (isset($header))
-        <header class="bg-white shadow">
-            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                {{ $header }}
+                <!-- Page Content -->
+                <main class="flex-1 overflow-y-auto">
+                    {{ $slot }}
+                </main>
             </div>
-        </header>
-        @endif
-
-        <!-- Page Content -->
-        <main>
-            {{ $slot }}
-        </main>
     </div>
     @stack('scripts')
 </body>

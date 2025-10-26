@@ -12,6 +12,10 @@ use Illuminate\Support\Facades\Validator;
 use League\Csv\Reader;
 use Illuminate\Support\Facades\Log;
 use App\Models\ImportProgress;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Validation\Rule;
+use App\Events\UserImported;
+use Illuminate\Support\Facades\DB;
 
 
 class UserController extends Controller
@@ -24,63 +28,102 @@ class UserController extends Controller
         // Trim search input to avoid hidden spaces
         $search = trim($request->get('search', ''));
 
-            if ($search) {
-                // Search mode
-                $users = User::active()
-                    ->where('id', '!=', auth()->user()->id)
-                    ->where(function ($query) use ($search) {
-                        $query->where('id', 'LIKE', "%{$search}%")
-                            ->orWhere('fullname', 'LIKE', "%{$search}%")
-                            ->orWhere('company_id', 'LIKE', "%{$search}%")
-                            ->orWhere('email', 'LIKE', "%{$search}%");
-                    })
-                    ->paginate(10)
-                    ->withQueryString();
+        // Apply dropdown filters
+        $province = $request->get('province');
+        $municipality = $request->get('municipality');
+        $office = $request->get('office');
 
-                // If nothing found, check archived
-                if ($users->isEmpty()) {
-                    $archived = User::where('deleted_status', 'Yes')
-                        ->where(function ($query) use ($search) {
-                            $query->where('fullname', 'LIKE', "%{$search}%")
-                                ->orWhere('company_id', 'LIKE', "%{$search}%")
-                                ->orWhere('email', 'LIKE', "%{$search}%");
-                        })
-                        ->first();
+        $usersQuery = User::active()->where('id', '!=', auth()->user()->id);
 
-                    if ($archived) {
-                        return redirect()->route('users')
-                            ->with('error', 'The user exists but is archived/deleted.');
-                    } else {
-                        return redirect()->route('users')
-                            ->with('error', 'The user is not exist.');
-                    }
-                }
+        // 🔎 Search
+        if ($search) {
+            $usersQuery->where(function ($query) use ($search) {
+                $query->where('id', 'LIKE', "%{$search}%")
+                    ->orWhere('fullname', 'LIKE', "%{$search}%")
+                    ->orWhere('company_id', 'LIKE', "%{$search}%")
+                    ->orWhere('email', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // 🔎 Apply filters
+        if ($province) {
+            $usersQuery->where('province', $province);
+        }
+        if ($municipality) {
+            $usersQuery->where('municipality', $municipality);
+        }
+        if ($office) {
+            $usersQuery->where('office', $office);
+        }
+
+        $users = $usersQuery->paginate(10);
+
+        // ✅ If nothing found, check archived
+        if ($search && $users->isEmpty()) {
+            $archived = User::where('activated', 'No')
+                ->where(function ($query) use ($search) {
+                    $query->where('fullname', 'LIKE', "%{$search}%")
+                        ->orWhere('company_id', 'LIKE', "%{$search}%")
+                        ->orWhere('email', 'LIKE', "%{$search}%");
+                })
+                ->first();
+
+            if ($archived) {
+                return redirect()->route('users')
+                    ->with('error', 'The user exists but is archived.');
             } else {
-                // Default: show all active users
-                $users = User::active()
-                    ->where('id', '!=', auth()->user()->id)
-                    ->latest()
-                    ->paginate(10);
+                return redirect()->route('users')
+                    ->with('error', 'The user does not exist.');
             }
+        }
 
-        return view('superadmin.users_nav.users', compact('users'));
+        // ✅ INSERT THIS RIGHT BEFORE RETURN
+        $provinceMunicipalityMap = [
+            "DAVAO CITY" => ["Davao City"],
+            "DAVAO OCCIDENTAL" => ["DON MARCELINO","JOSE ABAD SANTOS (TRINIDAD)","MALITA","SANTA MARIA","SARANGANI"],
+            "DAVAO DE ORO" => ["MONKAYO","COMPOSTELA","MONTEVISTA","NEW BATAAN","MARAGUSAN (SAN MARIANO)","NABUNTURAN (Capital)","MAWAB","MACO","PANTUKAN","MABINI (DOÑA ALICIA)","LAAK (SAN VICENTE)"],
+            "DAVAO DEL NORTE" => ["ASUNCION (SAUG)","BRAULIO E. DUJALI","CARMEN","KAPALONG","NEW CORELLA","SAN ISIDRO","SANTO TOMAS","TALAINGOD","CITY OF TAGUM (Capital)","CITY OF PANABO","ISLAND GARDEN CITY OF SAMAL"],
+            "DAVAO DEL SUR" => ["BANSALAN","HAGONOY","KIBLAWAN","MAGSAYSAY","MALALAG","MATANAO","PADADA","SANTA CRUZ","CITY OF DIGOS (Capital)","SULOP"],
+            "DAVAO ORIENTAL" => ["BAGANGA","BANAYBANAY","BOSTON","CARAGA","CATEEL","GOVERNOR GENEROSO","LUPON","MANAY","CITY OF MATI (Capital)","SAN ISIDRO","TARRAGONA"]
+        ];
+
+        $officeMap = [
+            "Davao City" => [
+                "Paquibato Sub-District","Talomo A Sub-District","Talomo B Sub-District","Toril A Sub-District","Toril B Sub-District",
+                "Buhangin A Sub-District","Buhangin B Sub-District","Poblacion Sub-District","Agdao Sub-District","Bunawan Sub-District",
+                "Calinan Sub-District","Baguio Sub-District","Tugbok Sub-District","Marilog Sub-District"
+            ],
+            "MONKAYO" => ["Monkayo Municipal Operations Office"],
+            "COMPOSTELA" => ["Compostela Municipal Operations Office"],
+            "MACO" => ["Maco Municipal Operations Office"],
+            // ⚡ continue all municipalities here...
+        ];
+
+        return view('superadmin.users_nav.users', compact('users', 'provinceMunicipalityMap', 'officeMap'));
     }
 
     public function archives(Request $request)
     {
-        $search = $request->get('search');
+        $query = User::where('activated', 'No');
 
-        if ($search) {
-            $archivedUsers = User::archived()
-                ->where(function ($query) use ($search) {
-                    $query->where('company_id', 'LIKE', "%{$search}%")
-                        ->orWhere('fullname', 'LIKE', "%{$search}%");
-                })
-                ->paginate(10)
-                ->withQueryString();
-        } else {
-            $archivedUsers = User::archived()->latest()->paginate(10);
+        if ($request->filled('province')) {
+            $query->where('province', $request->province);
         }
+        if ($request->filled('municipality')) {
+            $query->where('municipality', $request->municipality);
+        }
+        if ($request->filled('office')) {
+            $query->where('office', $request->office);
+        }
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('company_id', 'like', "%$search%")
+                ->orWhere('fullname', 'like', "%$search%");
+            });
+        }
+
+        $archivedUsers = $query->paginate(10);
 
         return view('superadmin.archives_nav.archives', compact('archivedUsers'));
     }
@@ -98,10 +141,11 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
-
         try {
             $validated = $request->validate([
-                'fullname' => 'required|string|max:255',
+                'first_name' => 'required|string|max:255',
+                'middle_name' => 'nullable|string|max:255',
+                'last_name' => 'required|string|max:255',
                 'username' => 'required|string|max:255',
                 'company_id' => 'required|string|max:255|unique:users,company_id',
                 'office' => 'required|string|max:255',
@@ -111,54 +155,103 @@ class UserController extends Controller
                 'email' => 'required|email|max:255|unique:users,email',
                 'employee_status' => 'required|string|max:255',
                 'access_level' => 'required|string|max:255',
-                'activated' => 'required|string|max:255',
-                'locked_status' => 'required|string|max:255',
-                'deleted_status' => 'required|string|max:255',
+                'activated' => 'required|string|in:Yes,No',
+                'locked_status' => 'required|string|in:Yes,No',
             ]);
-            
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->route('users')->withErrors($e->validator)->withInput()->with('openModal', true);
         }
 
-        // Generate a strong random password
-        $password = Str::random(12);
-        // Optionally, you can use a custom generator to ensure all requirements
-        // $password = $this->generateStrongPassword();
+        // Compose fullname
+        $fullname = User::composeFullname($validated['last_name'], $validated['first_name'], $validated['middle_name'] ?? '');
 
-        $user = new User($validated);
+        // Generate random password
+        $password = Str::random(12);
+
+        $user = new User();
+        // fill fields that exist on model
+        $user->fullname = $fullname;
+        $user->username = $validated['username'];
+        $user->company_id = $validated['company_id'];
+        $user->office = $validated['office'];
+        $user->region = $validated['region'];
+        $user->province = $validated['province'];
+        $user->municipality = $validated['municipality'];
+        $user->email = $validated['email'];
+        $user->employee_status = $validated['employee_status'];
+        $user->access_level = $validated['access_level'];
+        $user->activated = $validated['activated'];
+        $user->locked_status = $validated['locked_status'];
 
         $user->password = Hash::make($password);
         $user->email_verified_at = now();
         $user->save();
 
-        // Assign role based on access_level
-        $roleName = $validated['access_level'];
-        $user->assignRole($roleName);
-
-        // Send password to user's email
+        $user->assignRole($validated['access_level']);
         $user->notify(new SendPasswordNotification($password));
 
-        // Log activity
-        activity()
-            ->causedBy(auth()->user())
-            ->performedOn($user)
+        activity()->causedBy(auth()->user())->performedOn($user)
             ->withProperties([
                 'user_id' => $user->id,
                 'fullname' => $user->fullname,
                 'email' => $user->email,
                 'access_level' => $user->access_level
-            ])
-            ->log('Added new user');
+            ])->log('Added new user');
 
         return redirect()->route('users')->with('success', 'User created successfully and password sent to email.');
     }
 
     /**
-     * Display the specified resource.
+     * ✅ NEW: Update user details (Logic 2 - edit functionality)
      */
-    public function show(string $id)
+    public function update(Request $request, User $user)
     {
-        //
+        $validated = $request->validate([
+            'username' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $user->id,
+            'company_id' => 'nullable|string|max:255|unique:users,company_id,' . $user->id,
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'employee_status' => 'required|string|max:255',
+            'region' => 'required|string|max:255',
+            'province' => 'required|string|max:255',
+            'municipality' => 'required|string|max:255',
+            'office' => 'required|string|max:255',
+            'access_level' => 'required|string|max:255',
+            'activated' => 'required|string|in:Yes,No',
+            'locked_status' => 'required|string|in:Yes,No',
+        ]);
+
+        // Build fullname from parts (use your model helper if available)
+        $fullname = User::composeFullname(
+            $validated['last_name'] ?? '',
+            $validated['first_name'] ?? '',
+            $validated['middle_name'] ?? ''
+        );
+
+        unset($validated['first_name'], $validated['middle_name'], $validated['last_name']);
+
+        // Detect unlock
+        $wasLocked = $user->locked_status === 'Yes';
+        $user->fullname = $fullname;
+        $user->fill($validated);
+
+        // If unlocking, send password reset link
+        if ($wasLocked && $validated['locked_status'] === 'No') {
+            Password::sendResetLink(['email' => $user->email]);
+        }
+
+        $user->save();
+        
+        // Update user role assignment when access_level changes
+        $user->syncRoles([$validated['access_level']]);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['success' => true, 'user' => $user->fresh()]);
+        }
+
+        return back()->with('success', 'User updated successfully.');
     }
 
     /**
@@ -166,15 +259,47 @@ class UserController extends Controller
      */
     public function showProfile(User $user)
     {
+        // Return JSON with split parts to help JS prefill the edit modal
+        // Attempt to split using your User::decomposeFullname if available; otherwise simple parse:
+        $first = '';
+        $middle = '';
+        $last = '';
+
+        if (method_exists(User::class, 'decomposeFullname')) {
+            $parts = User::decomposeFullname($user->fullname);
+            $first = $parts['first_name'] ?? '';
+            $middle = $parts['middle_name'] ?? '';
+            $last = $parts['last_name'] ?? '';
+        } else {
+            // fallback: attempt to split "LASTNAME , FIRST MIDDLE"
+            if (strpos($user->fullname ?? '', ',') !== false) {
+                [$last, $rest] = array_map('trim', explode(',', $user->fullname, 2));
+                $rp = preg_split('/\s+/', trim($rest));
+                $first = $rp[0] ?? '';
+                $middle = count($rp) > 1 ? implode(' ', array_slice($rp, 1)) : '';
+            } else {
+                // naive fallback: first middle last
+                $parts = preg_split('/\s+/', trim($user->fullname ?? ''));
+                if (count($parts) === 1) { $first = $parts[0]; }
+                elseif (count($parts) === 2) { $first = $parts[0]; $last = $parts[1]; }
+                else { $first = array_shift($parts); $last = array_pop($parts); $middle = implode(' ', $parts); }
+            }
+        }
+
         return response()->json([
             'success' => true,
-            'user' => $user
+            'user' => array_merge($user->toArray(), [
+                'first_name' => $first,
+                'middle_name' => $middle,
+                'last_name' => $last,
+            ])
         ]);
     }
 
     public function archive(User $user)
     {
-        $user->archive();
+        $user->update(['activated' => 'No', 'archived_at' => now()]);
+
         // Log activity
         activity()
             ->causedBy(auth()->user())
@@ -186,74 +311,155 @@ class UserController extends Controller
                 'access_level' => $user->access_level
             ])
             ->log('Archived user');
+
         return redirect()->route('users')->with('success', 'User archived successfully');
     }
-
-    public function unarchive(User $user)
+    
+    /**
+     * Return user's history (units and fets or whatever relations you keep).
+     */
+    public function history($id)
     {
-        $user->unarchive();
+        try {
+            $user = User::where('id', $id)->first();
+            if (!$user) {
+                Log::warning("User not found for history: $id");
+                return response()->json(['success' => false, 'message' => 'User not found.'], 404);
+            }
+
+            $units = method_exists($user, 'units') ? $user->units()->get() : [];
+            $fets  = method_exists($user, 'fets') ? $user->fets()->get() : [];
+
+            Log::info("History for user $id: units=" . $units->count() . ", fets=" . $fets->count());
+
+            return response()->json([
+                'success' => true,
+                'history' => [
+                    'units' => $units,
+                    'fets'  => $fets,
+                ],
+                'user' => $user->only(['id','fullname','company_id'])
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("Error loading history for user $id: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Server error.'], 500);
+        }
+    }
+
+    public function unarchive(Request $request, User $user)
+    {
+        $user->update(['activated' => 'Yes', 'archived_at' => null]);
+
+        activity()->causedBy(auth()->user())
+            ->performedOn($user)
+            ->withProperties([
+                'user_id' => $user->id,
+                'fullname' => $user->fullname,
+            ])->log('Restored user');
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['success' => true, 'message' => 'User restored', 'user' => $user->fresh()]);
+        }
+
         return redirect()->route('archives')->with('success', 'User restored successfully');
     }
 
     // Import Profiles Modal on Superadmin
     public function import(Request $request)
     {
-        // 🔎 Debugging logs
-        Log::info('Import request received', $request->all());
+        try {
+            $request->validate([
+                'csv_file' => 'required|file|mimes:csv,txt|max:20480',
+            ]);
 
-        if ($request->hasFile('csv_file')) {
-            Log::info('CSV file uploaded: ' . $request->file('csv_file')->getClientOriginalName());
-        } else {
-            Log::error('No CSV file found in request');
+            $file = $request->file('csv_file');
+            if (!$file) {
+                return response()->json(['error' => 'No file uploaded'], 400);
+            }
+
+            $rows = array_map('str_getcsv', file($file->getRealPath()));
+            $header = array_map(fn($h) => strtolower(trim($h)), array_shift($rows));
+            
+            // Debug: Log the CSV headers
+            Log::info('CSV Headers detected: ' . json_encode($header));
+            
+            $records = [];
+            foreach ($rows as $row) {
+                if (count($header) === count($row)) {
+                    $records[] = array_combine($header, $row);
+                } else {
+                    Log::warning('Row count mismatch: Headers=' . count($header) . ', Row=' . count($row));
+                }
+            }
+            $total = count($records);
+            
+            Log::info("Total records to process: {$total}");
+
+        // Quick test to see if User model works
+        try {
+            $testUser = [
+                'fullname' => 'TEST USER',
+                'username' => 'testuser' . time(),
+                'company_id' => 'TEST' . time(),
+                'email' => 'test' . time() . '@example.com',
+                'password' => Hash::make('password'),
+                'email_verified_at' => now(),
+                'employee_status' => 'Active',
+                'office' => 'Test Office',
+                'region' => 'Test Region', 
+                'province' => 'Test Province',
+                'municipality' => 'Test Municipality',
+                'access_level' => 'Employee',
+                'activated' => 1,
+                'locked_status' => 0,
+            ];
+            
+            $createdTest = User::create($testUser);
+            Log::info('Test user created successfully with ID: ' . $createdTest->id);
+            // Delete test user immediately
+            $createdTest->delete();
+        } catch (\Exception $e) {
+            Log::error('Test user creation failed: ' . $e->getMessage());
         }
-
-        $request->validate([
-            'csv_file' => 'required|file|mimes:csv,txt|max:20480',
-        ]);
-
-        $file = $request->file('csv_file');
-
-        if (!$file) {
-            return response()->json(['error' => 'No file uploaded'], 400);
-        }
-
-        // Parse CSV
-        $rows = array_map('str_getcsv', file($file->getRealPath()));
-        // Normalize headers (trim spaces + lowercase)
-        $header = array_map(fn($h) => strtolower(trim($h)), array_shift($rows));
-
-        $records = [];
-
-        foreach ($rows as $row) {
-            $records[] = array_combine($header, $row);
-        }
-
-        $total = count($records);
 
         ImportProgress::updateOrCreate(
             ['type' => 'fets_import'],
-            ['total' => $total, 'processed' => 0]
+            ['total' => $total, 'processed' => 0, 'progress' => 0, 'recent' => '', 'skipped' => []]
         );
 
         $skipped = [];
-
+        $updated = [];
+        $processed = 0;
+        
         foreach ($records as $index => $record) {
             $record = array_map(fn($v) => mb_convert_encoding($v, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252'), $record);
 
+            // Check for existing user first
+            $existingUser = User::where('email', $record['email'])->first();
+
             $validator = Validator::make($record, [
-                'fullname'        => 'required|string|max:255',
-                'username'        => 'required|string|max:255',
-                'company_id'      => 'required|string|max:255',
-                'office'          => 'required|string|max:255',
-                'region'          => 'required|string|max:255',
-                'province'        => 'required|string|max:255',
-                'municipality'    => 'required|string|max:255',
-                'email'           => 'required|email|max:255',
+                'fullname' => 'required|string|max:255',
+                'username' => 'required|string|max:255',
+                'company_id' => [
+                    'required',
+                    'string',
+                    'max:255',
+                    Rule::unique('users', 'company_id')->ignore($existingUser?->id)
+                ],
+                'office' => 'required|string|max:255',
+                'region' => 'required|string|max:255',
+                'province' => 'required|string|max:255',
+                'municipality' => 'required|string|max:255',
+                'email' => [
+                    'required',
+                    'email',
+                    'max:255',
+                    Rule::unique('users', 'email')->ignore($existingUser?->id)
+                ],
                 'employee_status' => 'required|string|max:255',
-                'access_level'    => 'required|string|max:255',
-                'activated'       => 'required|string|max:255',
-                'locked_status'   => 'required|string|max:255',
-                'deleted_status'  => 'required|string|max:255',
+                'access_level' => 'required|string|max:255',
+                'activated' => 'required|string|in:Yes,No',
+                'locked_status' => 'required|string|in:Yes,No',
             ]);
 
             if ($validator->fails()) {
@@ -261,58 +467,210 @@ class UserController extends Controller
                     'errors' => $validator->errors()->all(),
                     'record' => $record
                 ];
+                
+                // Update progress even for skipped records
+                $processed++;
+                $progress = round(($processed / $total) * 100);
+                ImportProgress::where('type', 'fets_import')->update([
+                    'processed' => $processed,
+                    'progress' => $progress,
+                    'recent' => 'Skipped: ' . ($record['fullname'] ?? 'Unknown')
+                ]);
                 continue;
             }
 
             $validated = $validator->validated();
 
-            // 🔹 Check if user exists by email
-            $existingUser = User::where('email', $validated['email'])->first();
-
             if ($existingUser) {
-                // Compare credentials
-                $allMatch =
+                // Check if key credentials match (fullname, username, company_id)
+                $keyCredentialsMatch =
                     $existingUser->fullname === $validated['fullname'] &&
                     $existingUser->username === $validated['username'] &&
                     $existingUser->company_id === $validated['company_id'];
 
-                if ($allMatch) {
-                    // ✅ Update user info
+                if ($keyCredentialsMatch) {
+                    // Convert Yes/No to boolean values for update
+                    $validated['activated'] = $validated['activated'] === 'Yes' ? 1 : 0;
+                    $validated['locked_status'] = $validated['locked_status'] === 'Yes' ? 1 : 0;
+                    
+                    // Update existing user
                     $existingUser->update($validated);
-                } else {
-                    // ⚠️ Skip if credentials conflict
-                    $skipped[] = [
-                        'errors' => ["{$validated['fullname']} ({$validated['email']}) is already existing with different credentials."],
+                    
+                    // Track as updated
+                    $updated[] = [
+                        'message' => "{$validated['fullname']} ({$validated['email']}) was updated successfully.",
                         'record' => $validated
                     ];
+                    
+                    // Update progress for updated users
+                    $processed++;
+                    $progress = round(($processed / $total) * 100);
+                    ImportProgress::where('type', 'fets_import')->update([
+                        'processed' => $processed,
+                        'progress' => $progress,
+                        'recent' => 'Updated: ' . $validated['fullname']
+                    ]);
+                } else {
+                    $skipped[] = [
+                        'errors' => ["{$validated['fullname']} ({$validated['email']}) is already existing with different key credentials (fullname, username, or company_id)."],
+                        'record' => $validated
+                    ];
+                    
+                    // Update progress for skipped existing users
+                    $processed++;
+                    $progress = round(($processed / $total) * 100);
+                    ImportProgress::where('type', 'fets_import')->update([
+                        'processed' => $processed,
+                        'progress' => $progress,
+                        'recent' => 'Skipped: ' . $validated['fullname'] . ' (credential mismatch)'
+                    ]);
                     continue;
                 }
-            } else {
-                // 🔹 Insert new user
-                $password = Str::random(12);
-                $newUser = new User($validated);
-                $newUser->password = Hash::make($password);
-                $newUser->email_verified_at = now();
-                $newUser->save();
-
-                $newUser->assignRole($validated['access_level'] ?? 'Employee');
-                $newUser->notify(new SendPasswordNotification($password));
-            }
-
-            ImportProgress::where('type', 'fets_import')
-                ->update(['processed' => $index + 1]);
+                } else {
+                try {
+                    $password = Str::random(12);
+                    $validated['password'] = Hash::make($password);
+                    $validated['email_verified_at'] = now();
+                    
+                    // Convert Yes/No to boolean values
+                    $validated['activated'] = $validated['activated'] === 'Yes' ? 1 : 0;
+                    $validated['locked_status'] = $validated['locked_status'] === 'Yes' ? 1 : 0;
+                    
+                    Log::info('Attempting to create user: ' . json_encode($validated));
+                    
+                    $newUser = User::create($validated);
+                    Log::info('User created successfully with ID: ' . $newUser->id);
+                    
+                    $newUser->assignRole($validated['access_level'] ?? 'Employee');
+                    $newUser->notify(new SendPasswordNotification($password));
+                } catch (\Exception $e) {
+                    Log::error('Failed to create user: ' . $e->getMessage() . ' - Data: ' . json_encode($validated));
+                    $skipped[] = [
+                        'errors' => ['Failed to create user: ' . $e->getMessage()],
+                        'record' => $validated
+                    ];
+                }
+            }            // Update progress
+            $processed++;
+            $progress = round(($processed / $total) * 100);
+            ImportProgress::where('type', 'fets_import')->update([
+                'processed' => $processed,
+                'progress' => $progress,
+                'recent' => 'Processed: ' . $validated['fullname']
+            ]);
+            
+            // Add small delay to make progress visible
+            usleep(10000); // 0.01 second delay
         }
 
-        if (!empty($skipped)) {
+        ImportProgress::where('type', 'fets_import')->update([
+            'skipped' => $skipped,
+            'updated' => $updated
+        ]);
+
+        Log::info("Import completed. Total processed: {$processed}, Updated: " . count($updated) . ", Skipped: " . count($skipped));
+
+        return response()->json([
+            'status' => 'done', 
+            'updated' => collect($updated)->map(function($u) {
+                return $u['message'] ?? 'Updated successfully';
+            })->toArray(),
+            'skipped' => collect($skipped)->map(function($s) {
+            return $s['errors'][0] ?? 'Unknown error';
+        })->toArray()]);
+        
+        } catch (\Exception $e) {
+            Log::error('Import failed with exception: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json(['error' => 'Import failed: ' . $e->getMessage()], 500);
+        }
+    }
+        
+    // SUPER SIMPLE TEST METHOD
+    public function importSimple(Request $request)
+    {
+        // Just create ONE test user to see if database works
+        try {
+            $timestamp = time();
+            
+            $userId = DB::table('users')->insertGetId([
+                'fullname' => 'TEST USER ' . $timestamp,
+                'username' => 'test' . $timestamp,
+                'company_id' => 'TEST' . $timestamp,
+                'email' => 'test' . $timestamp . '@example.com',
+                'password' => Hash::make('password'),
+                'email_verified_at' => now(),
+                'employee_status' => 'Active',
+                'office' => 'Test Office',
+                'region' => 'Test Region',
+                'province' => 'Test Province',
+                'municipality' => 'Test Municipality',
+                'access_level' => 'Employee',
+                'activated' => 1,
+                'locked_status' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            
+            // Update progress to show completion
+            ImportProgress::updateOrCreate(
+                ['type' => 'fets_import'],
+                ['total' => 1, 'processed' => 1, 'progress' => 100, 'recent' => 'Test user created with ID: ' . $userId]
+            );
+            
             return response()->json([
                 'status' => 'done',
-                'skipped' => collect($skipped)->map(function($s) {
-                    return $s['errors'][0] ?? 'Unknown error';
-                })->toArray()
+                'created' => 1,
+                'user_id' => $userId,
+                'message' => 'Test user created successfully! Check users table for ID: ' . $userId
             ]);
+            
+        } catch (\Exception $e) {
+            ImportProgress::updateOrCreate(
+                ['type' => 'fets_import'],
+                ['total' => 1, 'processed' => 0, 'progress' => 0, 'recent' => 'ERROR: ' . $e->getMessage()]
+            );
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Database error: ' . $e->getMessage()
+            ], 500);
         }
-
-        return response()->json(['status' => 'done', 'skipped' => []]);
     }
-
+    
+    public function testImport()
+    {
+        // Force write to log file to confirm method is hit
+        file_put_contents(storage_path('logs/test_debug.log'), "testImport method called at " . date('Y-m-d H:i:s') . "\n", FILE_APPEND);
+        
+        try {
+            // Log that we hit this method
+            Log::info('TEST IMPORT: Method called successfully');
+            
+            // Try to create a simple test user with unique id to avoid conflicts
+            $testUser = [
+                'id_number' => 'TEST' . time(),
+                'fullname' => 'Test User ' . date('H:i:s'),
+                'position' => 'Test Position',  
+                'office' => 'Test Office',
+                'email' => 'test' . time() . '@example.com',
+                'role' => 'employee',
+                'password' => Hash::make('password'),
+                'created_at' => now(),
+                'updated_at' => now()
+            ];
+            
+            DB::table('users')->insert($testUser);
+            Log::info('TEST IMPORT: Test user created successfully');
+            
+            file_put_contents(storage_path('logs/test_debug.log'), "Test user created successfully\n", FILE_APPEND);
+            
+            return redirect()->back()->with('success', 'Test import successful! User created: ' . $testUser['fullname']);
+            
+        } catch (\Exception $e) {
+            Log::error('TEST IMPORT ERROR: ' . $e->getMessage());
+            file_put_contents(storage_path('logs/test_debug.log'), "ERROR: " . $e->getMessage() . "\n", FILE_APPEND);
+            return redirect()->back()->with('error', 'Test import failed: ' . $e->getMessage());
+        }
+    }
 }

@@ -12,7 +12,14 @@ class Official extends Model
         'role',       // Provincial DPSC, Regional DPSC, Head of Property
         'fullname',   // official's full name
         'active',     // boolean
+        'user_id', // NEW
     ];
+
+        public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
 
     /**
      * Booted method to automatically log changes to officials

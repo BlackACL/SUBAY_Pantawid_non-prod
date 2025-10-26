@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Notifications\TwoFactorCodeNotification;
 use Illuminate\View\View;
+use App\Models\User;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -26,17 +27,51 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        $request->authenticate();
+        // ✅ Step 1: Check if email exists
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return back()->withErrors([
+                'email' => 'The email is not registered! You can email the admin with this concern!',
+            ])->onlyInput('email');
+        }
+
+        // ✅ Step 2: Check if account is locked
+        if ($user->isLocked()) {
+            return back()->withErrors([
+                'email' => 'Your account has been locked. Please email the admin to unlock your account!',
+            ])->onlyInput('email');
+        }
+
+        // ✅ Step 3: Try to authenticate
+        if (!Auth::attempt($request->only('email', 'password'))) {
+            // Wrong password → increment failed attempts
+            $user->increment('failed_attempts');
+
+            if ($user->failed_attempts >= 3) {
+                $user->lock(); // calls User::lock()
+                return back()->withErrors([
+                    'email' => 'Your account has been locked. Please email the admin to unlock your account!',
+                ])->onlyInput('email');
+            }
+
+            return back()->withErrors([
+                'email' => 'Invalid credentials. Attempt '.$user->failed_attempts.'/3',
+            ])->onlyInput('email');
+        }
+
+        // ✅ Step 4: Successful login → reset counter
+        $user->failed_attempts = 0;
+        $user->save();
 
         $request->session()->regenerate();
 
-        $request->user()->regenerateTwoFactorCode();
+        $user->regenerateTwoFactorCode();
+        $user->notify(new \App\Notifications\TwoFactorCodeNotification());
 
-        $request->user()->notify(new TwoFactorCodeNotification());
-
-        // Log user login
+        // ✅ Log user login
         activity()
-            ->causedBy($request->user())
+            ->causedBy($user)
             ->withProperties([
                 'ip' => $request->ip(),
                 'device' => $request->userAgent(),
@@ -65,7 +100,6 @@ class AuthenticatedSessionController extends Controller
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
-
         $request->session()->regenerateToken();
 
         return redirect('/');

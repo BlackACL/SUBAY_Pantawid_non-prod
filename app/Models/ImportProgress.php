@@ -15,5 +15,10 @@ class ImportProgress extends Model
         'type',
         'total',
         'processed',
+        'progress',
+        'recent',
+        'logs',
+        'updated',
+        'skipped',
     ];
 }
