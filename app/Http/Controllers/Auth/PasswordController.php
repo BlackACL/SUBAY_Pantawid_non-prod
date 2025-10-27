@@ -15,6 +15,11 @@ class PasswordController extends Controller
      */
     public function update(Request $request): RedirectResponse
     {
+        // Check if passwords match first
+        if ($request->password !== $request->password_confirmation) {
+            return back()->with('error', 'Password doesn\'t match!');
+        }
+
         $validated = $request->validateWithBag('updatePassword', [
             'current_password' => ['required', 'current_password'],
             'password' => [
@@ -31,6 +36,6 @@ class PasswordController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
-        return back()->with('status', 'password-updated');
+        return back()->with('success', 'Password Updated Successfully!');
     }
 }

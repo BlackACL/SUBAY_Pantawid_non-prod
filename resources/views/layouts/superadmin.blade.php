@@ -20,22 +20,27 @@
 </head>
 
 <body class="font-sans antialiased">
-    <div class="bg-gray-100">
+    <div class="bg-gray-100 flex h-screen">
+        <!-- Sidebar Navigation -->
         @include('layouts.navigation')
+        
+        <!-- Main Content Area -->
+        <div class="flex-1 flex flex-col h-screen overflow-hidden">
+            <!-- Page Heading -->
+            @if (isset($header))
+            <header class="bg-white shadow shrink-0">
+                <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                    {{ $header }}
+                </div>
+            </header>
+            @endif
 
-        <!-- Page Heading -->
-        @if (isset($header))
-        <header class="bg-white shadow">
-            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                {{ $header }}
-            </div>
-        </header>
-           @endif
-
-        <!-- Page Content -->
-        <main class="pb-8">
-            {{ $slot }}
-        </main>
+            <!-- Page Content -->
+            <main class="flex-1 pb-8 overflow-y-auto">
+                {{ $slot }}
+            </main>
+            
+        </div>
     </div>
 </body>
 

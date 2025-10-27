@@ -1,68 +1,69 @@
 <x-guest-layout>
-    <form method="POST" action="{{ route('password.store') }}">
-        @csrf
+        <div class="w-full max-w-md bg-white rounded-xl p-6">
+            <form method="POST" action="{{ route('password.store') }}">
+                @csrf
 
-        <!-- Password Reset Token -->
-        <input type="hidden" name="token" value="{{ $request->route('token') }}">
+                <!-- Password Reset Token -->
+                <input type="hidden" name="token" value="{{ $request->route('token') }}">
 
-        <!-- Email Address -->
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email', $request->email)" required autofocus autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+                <!-- Email Address -->
+                <div>
+                    <x-input-label for="email" :value="__('Email')" />
+                    <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email', $request->email)" required autofocus autocomplete="username" />
+                    <x-input-error :messages="$errors->get('email')" class="mt-2" />
+                </div>
+
+                <!-- Password -->
+                <div class="mt-4">
+                    <x-input-label for="password" :value="__('Password')" />
+                    <x-text-input id="password" class="block mt-1 w-full" type="password" name="password" required autocomplete="new-password" />
+                    <x-input-error :messages="$errors->get('password')" class="mt-2" />
+
+                    <!-- Password Requirements -->
+                    <div class="mt-2 text-sm text-gray-600">
+                        <p class="font-medium mb-1">Password Requirements:</p>
+                        <ul class="space-y-1 text-xs">
+                            <li id="length-check" class="flex items-center">
+                                <span class="w-4 h-4 mr-2 text-gray-400">○</span>
+                                8-15 characters long
+                            </li>
+                            <li id="uppercase-check" class="flex items-center">
+                                <span class="w-4 h-4 mr-2 text-gray-400">○</span>
+                                At least one uppercase letter (A-Z)
+                            </li>
+                            <li id="lowercase-check" class="flex items-center">
+                                <span class="w-4 h-4 mr-2 text-gray-400">○</span>
+                                At least one lowercase letter (a-z)
+                            </li>
+                            <li id="number-check" class="flex items-center">
+                                <span class="w-4 h-4 mr-2 text-gray-400">○</span>
+                                At least one number (0-9)
+                            </li>
+                            <li id="special-check" class="flex items-center">
+                                <span class="w-4 h-4 mr-2 text-gray-400">○</span>
+                                At least one special character (!@#$%^&* etc.)
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Confirm Password -->
+                <div class="mt-4">
+                    <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
+                    <x-text-input id="password_confirmation" class="block mt-1 w-full"
+                                        type="password"
+                                        name="password_confirmation" required autocomplete="new-password" />
+                    <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
+                </div>
+
+                <div class="flex items-center justify-end mt-6">
+                    <x-primary-button class="w-full justify-center">
+                        {{ __('Reset Password') }}
+                    </x-primary-button>
+                </div>
+            </form>
         </div>
-
-        <!-- Password -->
-        <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
-            <x-text-input id="password" class="block mt-1 w-full" type="password" name="password" required autocomplete="new-password" />
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-            
-            <!-- Password Requirements -->
-            <div class="mt-2 text-sm text-gray-600">
-                <p class="font-medium mb-1">Password Requirements:</p>
-                <ul class="space-y-1 text-xs">
-                    <li id="length-check" class="flex items-center">
-                        <span class="w-4 h-4 mr-2 text-gray-400">○</span>
-                        8-15 characters long
-                    </li>
-                    <li id="uppercase-check" class="flex items-center">
-                        <span class="w-4 h-4 mr-2 text-gray-400">○</span>
-                        At least one uppercase letter (A-Z)
-                    </li>
-                    <li id="lowercase-check" class="flex items-center">
-                        <span class="w-4 h-4 mr-2 text-gray-400">○</span>
-                        At least one lowercase letter (a-z)
-                    </li>
-                    <li id="number-check" class="flex items-center">
-                        <span class="w-4 h-4 mr-2 text-gray-400">○</span>
-                        At least one number (0-9)
-                    </li>
-                    <li id="special-check" class="flex items-center">
-                        <span class="w-4 h-4 mr-2 text-gray-400">○</span>
-                        At least one special character (!@#$%^&* etc.)
-                    </li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- Confirm Password -->
-        <div class="mt-4">
-            <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
-
-            <x-text-input id="password_confirmation" class="block mt-1 w-full"
-                                type="password"
-                                name="password_confirmation" required autocomplete="new-password" />
-
-            <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
-        </div>
-
-        <div class="flex items-center justify-end mt-4">
-            <x-primary-button>
-                {{ __('Reset Password') }}
-            </x-primary-button>
-        </div>
-    </form>
+   
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {

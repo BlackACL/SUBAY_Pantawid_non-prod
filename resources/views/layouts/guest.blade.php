@@ -17,20 +17,29 @@
         <script src="https://www.google.com/recaptcha/api.js?render={{ config('services.recaptcha.site_key') }}"></script>
         <script src="https://cdn.tailwindcss.com"></script>
     </head>
-    <body class="font-sans text-gray-900 antialiased bg-cover bg-center" style="background: url('/images/bg.png') no-repeat center center fixed; background-size: cover;">
-        <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0">
+    <body class="font-sans text-gray-900 antialiased bg-cover bg-center min-h-screen" 
+        style="background-image: url('/images/bg.png'); background-repeat: no-repeat; background-size: cover;">
+        <div class="min-h-screen flex flex-col justify-center items-center pt-6 sm:pt-0">
+
+            <!-- Logos -->
             <div class="flex items-center justify-center space-x-4">
-                <img src="{{ asset('images/dswd_logo.png') }}" alt="DSWD Logo" style="height: 60px; width: auto;">
-                <img src="{{ asset('images/pantawid_logo.png') }}" alt="Pantawid Logo" style="height: 40px; width: auto;">
+                <img src="{{ asset('images/dswd_logo_white.png') }}" 
+                    alt="DSWD Logo" 
+                    class="h-12 sm:h-16 md:h-20 lg:h-20 w-auto">
+                <img src="{{ asset('images/pantawid_logo_white.png') }}" 
+                    alt="Pantawid Logo" 
+                    class="h-12 sm:h-16 md:h-20 lg:h-20 w-auto">
             </div>
 
-            <div class="flex justify-center mb-5">
-                <img src="{{ asset('images/subay_white.png') }}" alt="White Logo" style="height: 100px; width: auto;">
-            </div>
-
-            <div class="w-full sm:max-w-md mt-6 px-6 py-4 bg-white shadow-md overflow-hidden sm:rounded-lg">
+            <!-- Card -->
+            @if (!request()->routeIs('verify') && !request()->routeIs('verify.process'))
+                <div class="{{ $cardClass ?? 'w-full sm:max-w-md md:max-w-lg lg:max-w-md xl:max-w-lg 2xl:max-w-lg' }} mt-6 px-6 bg-white shadow-md rounded-lg">
+                    {{ $slot }}
+                </div>
+            @else
+                <!-- On Two-Factor routes, render slot directly (two-factor-challenge.blade.php will handle its own card) -->
                 {{ $slot }}
-            </div>
+            @endif
         </div>
         @stack('scripts')
     </body>
