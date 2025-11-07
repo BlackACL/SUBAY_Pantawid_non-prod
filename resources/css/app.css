@@ -1,3 +1,4 @@
+/* eslint-disable */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,7 +6,7 @@
 /* Fix reCAPTCHA overlay issue */
 .grecaptcha-badge { 
     z-index: 1000 !important;
-    pointer-events: none !important;
+    pointer-events: auto !important; /* Allow clicking the badge */
 }
 
 /* Ensure all interactive elements work */
