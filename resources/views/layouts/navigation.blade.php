@@ -2,15 +2,15 @@
        style="background-image: url('/images/bg.png');">
     <!-- Logo -->
     <div class="flex items-center justify-center py-8 border-b">
-        @if(Auth::user()->hasRole('superadmin'))
+        @if(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('superadmin'))
             <a href="{{ route('superadmin.logs_nav.logs') }}">
                 <img src="/images/dswd_logoXI.png" alt="DSWD Logo" class="h-16 w-auto drop-shadow" />
             </a>
-        @elseif(Auth::user()->hasRole('Regional DPSC'))
+        @elseif(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('Regional DPSC'))
             <a href="{{ route('Regional.VerifiedFETS') }}">
                 <img src="/images/dswd_logoXI.png" alt="DSWD Logo" class="h-16 w-auto drop-shadow" />
             </a>
-        @elseif(Auth::user()->hasRole('Provincial DPSC'))
+        @elseif(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('Provincial DPSC'))
             <a href="{{ route('Provincial.FETSrequest') }}">
                 <img src="/images/dswd_logoXI.png" alt="DSWD Logo" class="h-16 w-auto drop-shadow" />
             </a>
@@ -22,7 +22,7 @@
     </div>
     <!-- Navigation Links (vertical, enhanced, consistent) -->
     <nav class="flex-1 flex flex-col gap-1 px-4 py-4">
-        @if(Auth::user()->hasRole('superadmin'))
+        @if(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('superadmin'))
             <x-nav-link :href="route('superadmin.logs_nav.logs')" :active="request()->routeIs('superadmin.logs_nav.logs')" class="block w-full text-left px-4 py-2 rounded-lg transition flex items-center gap-2 hover:bg-[#74a7b5] {{ request()->routeIs('superadmin.logs_nav.logs') ? 'bg-[#6176a3] font-bold' : '' }}">
                 <i class="fas fa-list-alt text-white"></i>
                 <span class="text-lg text-white">Logs</span>
@@ -43,7 +43,7 @@
                 <i class="fas fa-cogs text-white"></i>
                 <span class="text-lg text-white">System Management</span>
             </x-nav-link>
-        @elseif(Auth::user()->hasRole('Regional DPSC'))
+        @elseif(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('Regional DPSC'))
             <x-nav-link :href="route('Regional.VerifiedFETS')" :active="request()->routeIs('Regional.VerifiedFETS')" class="block w-full text-left px-4 py-2 rounded-lg transition flex items-center gap-2 hover:bg-[#74a7b5] {{ request()->routeIs('Regional.VerifiedFETS') ? 'bg-[#6176a3] font-bold' : '' }}">
                 <i class="fas fa-check-circle text-white"></i>
                 <span class="text-lg text-white">Verified FETS</span>
@@ -64,7 +64,7 @@
                 <i class="fas fa-file-export text-white"></i>
                 <span class="text-lg text-white">Inventory Management</span>
             </x-nav-link>
-        @elseif(Auth::user()->hasRole('Provincial DPSC'))
+        @elseif(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('Provincial DPSC'))
             <x-nav-link :href="route('Provincial.FETSrequest')" :active="request()->routeIs('Provincial.FETSrequest')" class="block w-full text-left px-4 py-2 rounded-lg transition flex items-center gap-2 hover:bg-[#74a7b5] {{ request()->routeIs('Provincial.FETSrequest') ? 'bg-[#6176a3] font-bold' : '' }}">
                 <i class="fas fa-file-alt text-white"></i>
                 <span class="text-lg text-white">FETS Request</span>
@@ -116,24 +116,26 @@
             <div class="flex flex-col min-w-0">
                 <div class="font-medium text-base text-white break-words leading-tight">
                     <i class="fas fa-user-circle text-xl text-white mr-1"></i>
-                    <span class="whitespace-normal break-words">{{ Auth::user()->fullname }}</span>
+                    <span class="whitespace-normal break-words">
+                        {{ optional(Auth::user())->fullname ?: optional(Auth::user())->name ?: (optional(Auth::user())->first_name ? optional(Auth::user())->first_name . ' ' . optional(Auth::user())->last_name : optional(Auth::user())->email) }}
+                    </span>
                 </div>
                 <div class="font-medium text-sm text-white mt-1 break-all whitespace-normal">
-                    {{ Auth::user()->email }}
+                    {{ optional(Auth::user())->email ?? '' }}
                 </div>
                 <div class="font-medium text-xs text-white mt-1">
-                    @if(Auth::user()->hasRole('superadmin'))
-                        Superadmin
-                    @elseif(Auth::user()->hasRole('Regional DPSC'))
-                        Regional DPSC
-                    @elseif(Auth::user()->hasRole('Provincial DPSC'))
-                        Provincial DPSC – {{ Auth::user()->province }}
-                    @elseif(Auth::user()->hasRole('Employee'))
-                        Employee – {{ Auth::user()->province }}
-                    @else
-                        User
-                    @endif
-                </div>
+                        @if(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('superadmin'))
+                            Superadmin
+                        @elseif(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('Regional DPSC'))
+                            Regional DPSC
+                        @elseif(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('Provincial DPSC'))
+                            Provincial DPSC – {{ data_get(Auth::user(), 'province', '') }}
+                        @elseif(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('Employee'))
+                            Employee – {{ data_get(Auth::user(), 'province', '') }}
+                        @else
+                            User
+                        @endif
+                    </div>
             </div>
             <div class="flex-shrink-0 ml-2">
                 <div class="relative" x-data="{ open: false }" @click.outside="open = false" @close.stop="open = false">
