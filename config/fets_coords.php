@@ -11,7 +11,7 @@ return [
             'serial_no'   => ['x' => 49,    'width' => 31, 'wrap' => 30],
             'description' => ['x' => 78,    'width' => 126,'wrap' => 90], // Adjusted width based on user's latest 'standard'
             'par_no'      => ['x' => 205,   'width' => 50, 'wrap' => 30],
-            'remarks'     => ['x' => 249,   'width' => 40, 'wrap' => 25],
+            'remarks'     => ['x' => 249,   'width' => 20, 'wrap' => 20],
         ],
         'long' => [ // Kept original long layout
             'property_no' => ['x' => 15,    'width' => 37, 'wrap' => 20],

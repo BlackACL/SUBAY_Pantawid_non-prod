@@ -688,7 +688,7 @@ class FetsController extends Controller
 
 public function submittedEmbed()
 {
-    $documents = FetsDocument::where('user_id', auth()->id())s
+    $documents = FetsDocument::where('user_id', auth()->id())
         ->with(['submitter', 'verifier', 'approver'])
         ->orderByDesc('created_at')
         ->paginate(10);
@@ -866,14 +866,32 @@ public function submittedEmbed()
                 'status'             => 'submitted',
             ]);
 
-            // 12. Redirect
-            $redirectRoute = $request->has('embed') ? 'fets.select.embed' : 'fets.select';
-            return redirect()->route($redirectRoute)->with([
-                'success'           => 'FETS submitted and PDF generated successfully.',
-                'fets_id'           => $fets->id,
-                'fets_preview_url'  => route('fets.preview', ['id' => $fets->id]),
-                'fets_download_url' => route('fets.download', ['id' => $fets->id]),
-            ]);
+// 12. Redirect
+// Check if the request originated from the 'Return from Repair' form
+            if ($request->get('source') === 'return_form') {
+                // If it's a Return from Repair, redirect back to the previous page (the form)
+                // The calling controller (submitReturnFets) will handle the final redirect back.
+                // We just need to make sure we return a success signal.
+
+                // A simple return statement here works, as the calling method is set up
+                // to handle this return value and issue the final redirect()->back().
+                return [
+                    'success'           => 'FETS submitted and PDF generated successfully.',
+                    'fets_id'           => $fets->id,
+                    'fets_preview_url'  => route('fets.preview', ['id' => $fets->id]),
+                    'fets_download_url' => route('fets.download', ['id' => $fets->id]),
+                ];
+
+            } else {
+                // For all other FETS movements (the default behavior)
+                $redirectRoute = $request->has('embed') ? 'fets.select.embed' : 'fets.select';
+                return redirect()->route($redirectRoute)->with([
+                    'success'           => 'FETS submitted and PDF generated successfully.',
+                    'fets_id'           => $fets->id,
+                    'fets_preview_url'  => route('fets.preview', ['id' => $fets->id]),
+                    'fets_download_url' => route('fets.download', ['id' => $fets->id]),
+                ]);
+            }
 
         } catch (QueryException $e) {
             Storage::delete($filePath);
