@@ -1,11 +1,43 @@
 <x-superadmin-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-2xl text-gray-800 leading-tight">
-            {{ __('Officials Management') }}
+            {{ __('System Management') }}
         </h2>
     </x-slot>
 
-    <div class="p-6" x-data="officialsHistory()">
+    {{-- Notification --}}
+    @if(session('success'))
+        <div x-data="{ show: true }" x-show="show" class="bg-green-100 text-green-800 px-4 py-2 rounded mb-4 flex items-center justify-between" x-transition>
+            <span>{!! session('success') !!}</span>
+            <button @click="show = false" class="ml-4 text-green-900 hover:text-red-600 font-bold text-2xl leading-none" style="margin-left:auto;">&times;</button>
+        </div>
+    @endif
+
+    <div class="p-6">
+        {{-- Tab Navigation --}}
+        <div class="mb-6 border-b border-gray-200">
+            <nav class="flex space-x-4">
+                <button onclick="showTab('officials')" id="tab-officials"
+                        class="px-4 py-2 border-b-2 font-medium text-sm transition border-blue-500 text-blue-600">
+                    <i class="fas fa-user-shield mr-2"></i>Officials Management
+                </button>
+                <button onclick="showTab('places')" id="tab-places"
+                        class="px-4 py-2 border-b-2 font-medium text-sm transition border-transparent text-gray-500">
+                    <i class="fas fa-map-marked-alt mr-2"></i>Places Management
+                </button>
+                <button onclick="showTab('repair')" id="tab-repair"
+                        class="px-4 py-2 border-b-2 font-medium text-sm transition border-transparent text-gray-500">
+                    <i class="fas fa-tools mr-2"></i>Repair Destination Management
+                </button>
+                <button onclick="showTab('manual')" id="tab-manual"
+                        class="px-4 py-2 border-b-2 font-medium text-sm transition border-transparent text-gray-500">
+                    <i class="fas fa-book mr-2"></i>Manual Management
+                </button>
+            </nav>
+        </div>
+
+        {{-- Officials Management Tab --}}
+        <div id="content-officials" class="tab-content">
         <div class="space-y-6">
             @php
                 $requiredRoles = ['Provincial DPSC', 'Regional DPSC', 'Head of Property', 'Recommending', 'Approving'];
@@ -58,8 +90,49 @@
                 </div>
             @endforeach
         </div>
+        </div>
 
-        <div id="replaceModal" class="fixed inset-0 hidden items-center justify-center bg-black/50 z-50">
+        {{-- Places Management Tab --}}
+        <div id="content-places" class="tab-content" style="display:none;">
+            @include('superadmin.officials.places_management')
+        </div>
+
+        {{-- Repair Destination Management Tab --}}
+        <div id="content-repair" class="tab-content" style="display:none;">
+            @include('superadmin.officials.repair_destinations', ['destinations' => $destinations])
+        </div>
+
+        {{-- Manual Management Tab --}}
+        <div id="content-manual" class="tab-content" style="display:none;">
+            @include('superadmin.officials.manual_management', ['currentManual' => $currentManual])
+        </div>
+    </div>        {{-- Manual Management Tab --}}
+        <div id="content-manual" class="tab-content" style="display:none;">
+            @include('superadmin.officials.manual_management', ['currentManual' => $currentManual])
+        </div>
+    </div>
+
+    <script>
+    function showTab(tabName) {
+        // Hide all tabs
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.style.display = 'none';
+        });
+        
+        // Remove active class from all buttons
+        document.querySelectorAll('[id^="tab-"]').forEach(btn => {
+            btn.className = 'px-4 py-2 border-b-2 font-medium text-sm transition border-transparent text-gray-500';
+        });
+        
+        // Show selected tab
+        document.getElementById('content-' + tabName).style.display = 'block';
+        
+        // Add active class to clicked button
+        document.getElementById('tab-' + tabName).className = 'px-4 py-2 border-b-2 font-medium text-sm transition border-blue-500 text-blue-600';
+    }
+    </script>
+
+    <div id="replaceModal" class="fixed inset-0 hidden items-center justify-center bg-black/50 z-50" x-data="officialsHistory()">
             <div class="bg-white p-6 rounded-xl w-1/3">
                 <h2 class="text-lg font-bold mb-4">Replace Official</h2>
                 <form id="replaceForm" method="POST">
@@ -104,7 +177,7 @@
                                 <td class="p-2" x-text="new Date(official.created_at).toLocaleString()"></td>
                                 <td class="p-2">
                                     <template x-if="!official.active">
-                                        <form :action="`/officials/reactivate/${official.id}`" method="POST">
+                                        <form :action="`/management/reactivate/${official.id}`" method="POST">
                                             @csrf
                                             <button type="submit" class="px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-sm">
                                                 Reactivate
@@ -129,7 +202,7 @@
             document.getElementById('replaceModal').classList.remove('hidden');
             document.getElementById('replaceRole').value = role;
             document.getElementById('replaceProvince').value = province;
-            document.getElementById('replaceForm').action = `/officials/update/${activeId}`;
+            document.getElementById('replaceForm').action = `/management/update/${activeId}`;
 
             let container = document.getElementById('replaceInputContainer');
             container.innerHTML = '';
@@ -209,7 +282,7 @@
                     this.selectedProvince = province || 'National'; // Use 'National' if province is empty
                     this.showHistory = true;
 
-                    let url = `/officials/history/${encodeURIComponent(role)}/${encodeURIComponent(province || '-')}`;
+                    let url = `/management/history/${encodeURIComponent(role)}/${encodeURIComponent(province || '-')}`;
                     let res = await fetch(url);
                     this.historyList = await res.json();
                 }
@@ -218,6 +291,15 @@
 
         // Add event listeners when page loads
         document.addEventListener('DOMContentLoaded', function() {
+            // Check if there's a tab parameter in the URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const activeTab = urlParams.get('tab');
+            
+            // If tab parameter exists, switch to that tab
+            if (activeTab && ['officials', 'places', 'repair', 'manual'].includes(activeTab)) {
+                showTab(activeTab);
+            }
+            
             document.addEventListener('click', function(e) {
                 if (e.target.classList.contains('replace-btn')) {
                     const role = e.target.dataset.role;

@@ -668,65 +668,11 @@
         DATA MAPPINGS (shared for Add & Filters; Edit reuses these but via separate functions)
         (FULL lists provided below)
         ------------------- */
-        const provinceMunicipalityMap = {
-            "DAVAO CITY": ["Davao City"],
-            "DAVAO OCCIDENTAL": ["DON MARCELINO","JOSE ABAD SANTOS (TRINIDAD)","MALITA","SANTA MARIA","SARANGANI"],
-            "DAVAO DE ORO": ["MONKAYO","COMPOSTELA","MONTEVISTA","NEW BATAAN","MARAGUSAN (SAN MARIANO)","NABUNTURAN (Capital)","MAWAB","MACO","PANTUKAN","MABINI (DOÑA ALICIA)","LAAK (SAN VICENTE)"],
-            "DAVAO DEL NORTE": ["ASUNCION (SAUG)","BRAULIO E. DUJALI","CARMEN","KAPALONG","NEW CORELLA","SAN ISIDRO","SANTO TOMAS","TALAINGOD","CITY OF TAGUM (Capital)","CITY OF PANABO","ISLAND GARDEN CITY OF SAMAL"],
-            "DAVAO DEL SUR": ["BANSALAN","HAGONOY","KIBLAWAN","MAGSAYSAY","MALALAG","MATANAO","PADADA","SANTA CRUZ","CITY OF DIGOS (Capital)","SULOP"],
-            "DAVAO ORIENTAL": ["BAGANGA","BANAYBANAY","BOSTON","CARAGA","CATEEL","GOVERNOR GENEROSO","LUPON","MANAY","CITY OF MATI (Capital)","SAN ISIDRO","TARRAGONA"]
-        };
+        // Dynamic data from database via Place model
+        const provinceMunicipalityMap = @json($provinceMunicipalityMap);
 
-        const officeMap = {
-            "Davao City": ["Paquibato Sub-District","Talomo A Sub-District","Talomo B Sub-District","Toril A Sub-District","Toril B Sub-District","Buhangin A Sub-District","Buhangin B Sub-District","Poblacion Sub-District","Agdao Sub-District","Bunawan Sub-District","Calinan Sub-District","Baguio Sub-District","Tugbok Sub-District","Marilog Sub-District"],
-            "MONKAYO": ["Monkayo Municipal Operations Office"],
-            "COMPOSTELA": ["Compostela Municipal Operation Office"],
-            "MONTEVISTA": ["Montevista Municipal Operations Office"],
-            "NEW BATAAN": ["New Bataan Municipal Operations Office"],
-            "MARAGUSAN (SAN MARIANO)": ["Maragusan Municipal Operations Office"],
-            "NABUNTURAN (Capital)": ["Nabunturan Municipal Operations Office"],
-            "MAWAB": ["Mawab Municipal Operations Office"],
-            "MACO": ["Maco Municipal Operations Office"],
-            "PANTUKAN": ["Pantukan Municipal Operations Office"],
-            "MABINI (DOÑA ALICIA)": ["Mabini Municipal Operations Office"],
-            "LAAK (SAN VICENTE)": ["Laak Municipal Operations Office"],
-            "BAGANGA": ["Baganga Municipal Operations Office"],
-            "BANAYBANAY": ["Banaybanay Municipal Operations Office"],
-            "BOSTON": ["Boston Municipal Operations Office"],
-            "CARAGA": ["Caraga Municipal Operations Office"],
-            "CATEEL": ["Cateel Municipal Operations Office"],
-            "GOVERNOR GENEROSO": ["Governor Generoso Municipal Operations Office"],
-            "LUPON": ["Lupon Municipal Operations Office"],
-            "MANAY": ["Manay Municipal Operations Office"],
-            "CITY OF MATI (Capital)": ["Mati City Operations Office"],
-            "SAN ISIDRO": ["San Isidro Municipal Operations Office"],
-            "TARRAGONA": ["Tarragona Municipal Operations Office"],
-            "ASUNCION (SAUG)": ["Asuncion Municipal Operations Office"],
-            "BRAULIO E. DUJALI": ["Braulio E. Dujali Municipal Operations Office"],
-            "CARMEN": ["Carmen Municipal Operations Office"],
-            "KAPALONG": ["Kapalong Municipal Operations Office"],
-            "NEW CORELLA": ["New Corella Municipal Operations Office"],
-            "SANTO TOMAS": ["Santo Tomas Municipal Operations Office"],
-            "TALAINGOD": ["Talaingod Municipal Operations Office"],
-            "CITY OF TAGUM (Capital)": ["Tagum City Operations Office"],
-            "CITY OF PANABO": ["Panabo City Operations Office"],
-            "ISLAND GARDEN CITY OF SAMAL": ["Island Garden City of Samal City Operations Office"],
-            "DON MARCELINO": ["Don Marcelino Municipal Operations Office"],
-            "JOSE ABAD SANTOS (TRINIDAD)": ["Jose Abad Santos Municipal Operations Office"],
-            "MALITA": ["Malita Municipal Operations Office"],
-            "SANTA MARIA": ["Santa Maria Municipal Operations Office"],
-            "SARANGANI": ["Sarangani Municipal Operations Office"],
-            "BANSALAN": ["Bansalan Municipal Operations Office"],
-            "HAGONOY": ["Hagonoy Municipal Operations Office"],
-            "KIBLAWAN": ["Kiblawan Municipal Operations Office"],
-            "MAGSAYSAY": ["Magsaysay Municipal Operations Office"],
-            "MALALAG": ["Malalag Municipal Operations Office"],
-            "MATANAO": ["Matanao Municipal Operations Office"],
-            "PADADA": ["Padada Municipal Operations Office"],
-            "SANTA CRUZ": ["Sta. Cruz Municipal Operations Office"],
-            "CITY OF DIGOS (Capital)": ["Digos City Operations Office"],
-            "SULOP": ["Sulop Municipal Operations Office"]
-        };
+        // Dynamic data from database via Place model
+        const officeMap = @json($officeMap);
 
         /* ================================
         SHARED FUNCTIONS (for Add user modal AND the FILTERS on users page)

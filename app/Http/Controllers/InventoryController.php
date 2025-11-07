@@ -21,6 +21,29 @@ class InventoryController extends Controller
        INDEX & SHOW METHODS
        =========================== */
 
+    public function superadminInventory(Request $request)
+    {
+        // Superadmin can see ALL inventory from all users
+        $query = DB::table('inventory')
+            ->whereNotNull('PROPERTY_NO')
+            ->where('PROPERTY_NO', '!=', '');
+
+        // Apply search filter
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('RECEIVER', 'like', "%{$search}%")
+                  ->orWhere('GENERAL_DESCRIPTION', 'like', "%{$search}%")
+                  ->orWhere('SERIAL_NO', 'like', "%{$search}%")
+                  ->orWhere('PROPERTY_NO', 'like', "%{$search}%");
+            });
+        }
+
+        $inventory = $query->orderBy('PROPERTY_NO')->paginate(10)->appends($request->all());
+
+        return view('superadmin.inventory.index', compact('inventory'));
+    }
+
     public function index(Request $request)
     {
         $user = auth()->user();

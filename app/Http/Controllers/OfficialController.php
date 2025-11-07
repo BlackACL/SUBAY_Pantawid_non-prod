@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Official;
 use App\Models\Inventory;
 use App\Models\User;
+use App\Models\Manual;
 use Illuminate\Support\Facades\DB;
 
 class OfficialController extends Controller
@@ -25,7 +26,14 @@ class OfficialController extends Controller
             ->get();
 
         $officials = $allOfficials->groupBy(['role', 'province']);
-        return view('superadmin.officials.index', compact('officials'));
+        
+        // Get repair destinations for the repair destination tab
+        $destinations = \App\Models\RepairDestination::all();
+        
+        // Get current manual for manual management tab
+        $currentManual = Manual::latest('uploaded_at')->first();
+        
+        return view('superadmin.officials.index', compact('officials', 'destinations', 'currentManual'));
     }
 
     // 🔹 Replace Active Official

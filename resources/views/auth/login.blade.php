@@ -60,6 +60,18 @@
             @endif
         </div>
 
+        <!-- Help Text -->
+        <div class="text-center mt-4">
+            <p class="text-sm text-gray-600">
+                Need help? Email the Superadmin: 
+                <a href="https://mail.google.com/mail/?view=cm&fs=1&to=main.central321@gmail.com" 
+                   target="_blank"
+                   class="text-blue-600 underline hover:text-blue-800 font-medium">
+                    main.central321@gmail.com
+                </a>
+            </p>
+        </div>
+
         <!-- Submit -->
         <div class="flex flex-col items-center mt-6">
             <button type="submit" class="bg-[#000033] text-lg text-white px-10 py-3 rounded my-6">

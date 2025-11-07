@@ -35,9 +35,13 @@
                 <i class="fas fa-archive text-white"></i>
                 <span class="text-lg text-white">Archives</span>
             </x-nav-link>
+            <x-nav-link :href="route('superadmin.inventory')" :active="request()->routeIs('superadmin.inventory')" class="block w-full text-left px-4 py-2 rounded-lg transition flex items-center gap-2 hover:bg-[#74a7b5] {{ request()->routeIs('superadmin.inventory') ? 'bg-[#6176a3] font-bold' : '' }}">
+                <i class="fas fa-boxes text-white"></i>
+                <span class="text-lg text-white">Inventory</span>
+            </x-nav-link>
             <x-nav-link :href="route('officials.index')" :active="request()->routeIs('officials.index')" class="block w-full text-left px-4 py-2 rounded-lg transition flex items-center gap-2 hover:bg-[#74a7b5] {{ request()->routeIs('officials.index') ? 'bg-[#6176a3] font-bold' : '' }}">
-                <i class="fas fa-user-shield text-white"></i>
-                <span class="text-lg text-white">Modify Official</span>
+                <i class="fas fa-cogs text-white"></i>
+                <span class="text-lg text-white">System Management</span>
             </x-nav-link>
         @elseif(Auth::user()->hasRole('Regional DPSC'))
             <x-nav-link :href="route('Regional.VerifiedFETS')" :active="request()->routeIs('Regional.VerifiedFETS')" class="block w-full text-left px-4 py-2 rounded-lg transition flex items-center gap-2 hover:bg-[#74a7b5] {{ request()->routeIs('Regional.VerifiedFETS') ? 'bg-[#6176a3] font-bold' : '' }}">
@@ -96,6 +100,16 @@
             </x-nav-link>
         @endif
     </nav>
+
+    <!-- Manual Button -->
+    <div class="px-4 pb-3">
+        <a href="{{ route('manual.view') }}" target="_blank" 
+           class="block w-full text-center px-4 py-3 rounded-lg bg-yellow-500 hover:bg-yellow-600 transition text-white font-semibold shadow-lg">
+            <i class="fas fa-book mr-2"></i>
+            <span class="text-base">User Manual</span>
+        </a>
+    </div>
+
     <!-- Account Section (moved below links, aligned, no icons for email/role) -->
     <div class="border-t border-white border-opacity-20 px-3.5 py-3 flex-shrink-0">
         <div class="flex items-center justify-between gap-2">

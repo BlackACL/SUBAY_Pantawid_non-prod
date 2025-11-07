@@ -6,6 +6,9 @@ use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TwoFactorCodeController;
 use App\Http\Controllers\OfficialController;
+use App\Http\Controllers\PlaceController;
+use App\Http\Controllers\RepairDestinationController;
+use App\Http\Controllers\ManualController;
 use App\Models\ImportProgress;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -367,11 +370,32 @@ Route::middleware(['auth', 'role:superadmin', 'verified', 'twofactor'])->group(f
     Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
     Route::get('/users/{id}/history', [UserController::class, 'history']);
 
+    // ✅ Superadmin Inventory - View all employees' inventory
+    Route::get('/superadmin/inventory', [InventoryController::class, 'superadminInventory'])->name('superadmin.inventory');
+
     // ✅ Officials Management
     Route::get('/officials', [OfficialController::class, 'index'])->name('officials.index');
     Route::post('/officials/update/{activeId?}', [OfficialController::class, 'update'])->name('officials.update');
     Route::get('/officials/history/{role}/{province?}', [OfficialController::class, 'history'])->name('officials.history');
     Route::post('/officials/reactivate/{id}', [OfficialController::class, 'reactivate'])->name('officials.reactivate');
+
+    // ✅ Places Management (API routes)
+    Route::get('/api/places/hierarchy', [PlaceController::class, 'getHierarchy'])->name('places.hierarchy');
+    Route::get('/api/places/provinces', [PlaceController::class, 'getProvinces'])->name('places.provinces');
+    Route::get('/api/places/municipalities', [PlaceController::class, 'getMunicipalities'])->name('places.municipalities');
+    Route::get('/api/places/offices', [PlaceController::class, 'getOffices'])->name('places.offices');
+    Route::post('/api/places/province', [PlaceController::class, 'storeProvince'])->name('places.province.store');
+    Route::post('/api/places/municipality', [PlaceController::class, 'storeMunicipality'])->name('places.municipality.store');
+    Route::post('/api/places/office', [PlaceController::class, 'storeOffice'])->name('places.office.store');
+    Route::delete('/api/places/{id}', [PlaceController::class, 'destroy'])->name('places.destroy');
+
+    // ✅ Repair Destinations Management
+    Route::post('/repair-destinations', [RepairDestinationController::class, 'store'])->name('repair-destinations.store');
+    Route::delete('/repair-destinations/{id}', [RepairDestinationController::class, 'destroy'])->name('repair-destinations.destroy');
+
+    // ✅ Manual Management (Superadmin only)
+    Route::post('/manual/upload', [ManualController::class, 'upload'])->name('manual.upload');
+    Route::delete('/manual/delete', [ManualController::class, 'delete'])->name('manual.delete');
 
     // 📁 User Import Routes
     Route::post('/users/import', [UserController::class, 'importSimple'])->name('users.import');
@@ -467,6 +491,9 @@ Route::middleware(['auth', 'verified', 'twofactor'])->group(function () {
 
     // Multi-file Upload (AJAX + progress)
     Route::post('/inventory/upload', [InventoryController::class, 'upload'])->name('inventory.upload.submit');
+
+    // 📖 View Manual (All authenticated users)
+    Route::get('/manual', [ManualController::class, 'view'])->name('manual.view');
 
     // Export full inventory
     Route::get('/inventory/export', [InventoryController::class, 'export'])->name('inventory.export');

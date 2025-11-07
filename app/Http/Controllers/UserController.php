@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Place;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -77,27 +78,33 @@ class UserController extends Controller
             }
         }
 
-        // ✅ INSERT THIS RIGHT BEFORE RETURN
-        $provinceMunicipalityMap = [
-            "DAVAO CITY" => ["Davao City"],
-            "DAVAO OCCIDENTAL" => ["DON MARCELINO","JOSE ABAD SANTOS (TRINIDAD)","MALITA","SANTA MARIA","SARANGANI"],
-            "DAVAO DE ORO" => ["MONKAYO","COMPOSTELA","MONTEVISTA","NEW BATAAN","MARAGUSAN (SAN MARIANO)","NABUNTURAN (Capital)","MAWAB","MACO","PANTUKAN","MABINI (DOÑA ALICIA)","LAAK (SAN VICENTE)"],
-            "DAVAO DEL NORTE" => ["ASUNCION (SAUG)","BRAULIO E. DUJALI","CARMEN","KAPALONG","NEW CORELLA","SAN ISIDRO","SANTO TOMAS","TALAINGOD","CITY OF TAGUM (Capital)","CITY OF PANABO","ISLAND GARDEN CITY OF SAMAL"],
-            "DAVAO DEL SUR" => ["BANSALAN","HAGONOY","KIBLAWAN","MAGSAYSAY","MALALAG","MATANAO","PADADA","SANTA CRUZ","CITY OF DIGOS (Capital)","SULOP"],
-            "DAVAO ORIENTAL" => ["BAGANGA","BANAYBANAY","BOSTON","CARAGA","CATEEL","GOVERNOR GENEROSO","LUPON","MANAY","CITY OF MATI (Capital)","SAN ISIDRO","TARRAGONA"]
-        ];
+        // ✅ Build dynamic province-municipality map from Place model
+        $provinces = Place::where('type', Place::TYPE_PROVINCE)
+            ->with(['children' => function($query) {
+                $query->where('type', Place::TYPE_MUNICIPALITY)
+                    ->orderBy('name');
+            }])
+            ->orderBy('name')
+            ->get();
 
-        $officeMap = [
-            "Davao City" => [
-                "Paquibato Sub-District","Talomo A Sub-District","Talomo B Sub-District","Toril A Sub-District","Toril B Sub-District",
-                "Buhangin A Sub-District","Buhangin B Sub-District","Poblacion Sub-District","Agdao Sub-District","Bunawan Sub-District",
-                "Calinan Sub-District","Baguio Sub-District","Tugbok Sub-District","Marilog Sub-District"
-            ],
-            "MONKAYO" => ["Monkayo Municipal Operations Office"],
-            "COMPOSTELA" => ["Compostela Municipal Operations Office"],
-            "MACO" => ["Maco Municipal Operations Office"],
-            // ⚡ continue all municipalities here...
-        ];
+        $provinceMunicipalityMap = [];
+        foreach ($provinces as $province) {
+            $provinceMunicipalityMap[$province->name] = $province->children->pluck('name')->toArray();
+        }
+
+        // ✅ Build dynamic municipality-office map from Place model
+        $municipalities = Place::where('type', Place::TYPE_MUNICIPALITY)
+            ->with(['children' => function($query) {
+                $query->where('type', Place::TYPE_OFFICE)
+                    ->orderBy('name');
+            }])
+            ->orderBy('name')
+            ->get();
+
+        $officeMap = [];
+        foreach ($municipalities as $municipality) {
+            $officeMap[$municipality->name] = $municipality->children->pluck('name')->toArray();
+        }
 
         return view('superadmin.users_nav.users', compact('users', 'provinceMunicipalityMap', 'officeMap'));
     }
