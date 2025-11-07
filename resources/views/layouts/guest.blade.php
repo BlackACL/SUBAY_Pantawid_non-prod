@@ -10,15 +10,18 @@
         <!-- Favicon -->
         <link rel="icon" type="image/png" href="{{ asset('images/dswd_logo_hand.png') }}">
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
-        <!-- <script src="https://www.google.com/recaptcha/api.js"></script> -->
-        <script src="https://www.google.com/recaptcha/api.js?render={{ config('services.recaptcha.site_key') }}"></script>
-        <script src="https://cdn.tailwindcss.com"></script>
+        {{-- Temporarily disabled for testing --}}
+        {{-- <script src="https://www.google.com/recaptcha/api.js?render={{ config('services.recaptcha.site_key') }}"></script> --}}
+        
+        <!-- Debug script -->
+        <script>
+            console.log('Page loaded successfully');
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('DOM loaded, page should be interactive');
+            });
+        </script>
     </head>
     <body class="font-sans text-gray-900 antialiased bg-cover bg-center min-h-screen" 
         style="background-image: url('/images/bg.png'); background-repeat: no-repeat; background-size: cover;">

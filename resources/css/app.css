@@ -1,3 +1,20 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Fix reCAPTCHA overlay issue */
+.grecaptcha-badge { 
+    z-index: 1000 !important;
+    pointer-events: none !important;
+}
+
+/* Ensure all interactive elements work */
+body, html, input, button, a {
+    pointer-events: auto !important;
+}
+
+/* Remove any potential blocking overlays */
+body::before,
+body::after {
+    pointer-events: none !important;
+}

@@ -1,5 +1,4 @@
 <x-app-layout>
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
 
 <div class="pb-6">
     <div class="bg-white p-6 shadow-sm rounded-lg">
@@ -322,7 +321,6 @@
     }
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 <script>
     if (document.getElementById('to_receiver')) {
         new TomSelect('#to_receiver', {

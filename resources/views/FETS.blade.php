@@ -1,5 +1,4 @@
 <x-app-layout>
-    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
 
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">

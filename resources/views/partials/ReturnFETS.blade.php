@@ -1,7 +1,6 @@
 @extends('layouts.modal')
 
 @section('content')
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
     <div class="p-6">
         <div class="bg-white p-6 shadow-sm rounded-lg">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">Return from Repair FETS</h2>
