@@ -323,6 +323,14 @@
                 // Remove from storage
                 sessionStorage.removeItem('fetsUpdateSuccess');
                 
+                // Hide any existing Laravel session success messages
+                const existingAlerts = document.querySelectorAll('.bg-green-100, .bg-green-50');
+                existingAlerts.forEach(alert => {
+                    if (alert.textContent.includes('FETS') || alert.textContent.includes('PDF')) {
+                        alert.remove();
+                    }
+                });
+                
                 // Create and show success alert
                 const alertHtml = `
                     <div id="success-alert" class="mb-4 p-4 bg-green-50 border-l-4 border-green-500 rounded relative">

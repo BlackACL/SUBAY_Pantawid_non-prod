@@ -9,7 +9,7 @@
     <div class="overflow-x-auto">
         <table class="min-w-full bg-white border rounded-lg">
             <thead>
-                <tr class="bg-gray-100">
+                <tr class="bg-[#2e3192] text-white">
                     <th class="px-4 py-2 border text-left">Name</th>
                     <th class="px-4 py-2 border text-left">Action</th>
                 </tr>

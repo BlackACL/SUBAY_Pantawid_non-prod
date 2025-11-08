@@ -30,11 +30,11 @@
         <div class="overflow-x-auto">
             <table class="w-full border-collapse border border-gray-300">
                 <thead>
-                    <tr class="bg-gray-100">
-                        <th class="p-3 text-left border border-gray-300 font-semibold">Province</th>
-                        <th class="p-3 text-left border border-gray-300 font-semibold">Municipality</th>
-                        <th class="p-3 text-left border border-gray-300 font-semibold">Office</th>
-                        <th class="p-3 text-center border border-gray-300 font-semibold w-32">Action</th>
+                    <tr class="bg-[#2e3192]">
+                        <th class="p-3 text-left border border-gray-300 font-semibold text-white">Province</th>
+                        <th class="p-3 text-left border border-gray-300 font-semibold text-white">Municipality</th>
+                        <th class="p-3 text-left border border-gray-300 font-semibold text-white">Office</th>
+                        <th class="p-3 text-center border border-gray-300 font-semibold w-32 text-white">Action</th>
                     </tr>
                 </thead>
                 <tbody id="placesTableBody">

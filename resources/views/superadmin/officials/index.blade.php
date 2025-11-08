@@ -51,7 +51,7 @@
 
                     <table class="w-full border-collapse">
                         <thead>
-                            <tr class="bg-gray-100">
+                            <tr class="bg-[#2e3192] text-white">
                                 <th class="p-2 text-left">Province</th>
                                 <th class="p-2 text-left">Active Official</th>
                                 <th class="p-2 text-left">Actions</th>
@@ -129,7 +129,19 @@
         
         // Add active class to clicked button
         document.getElementById('tab-' + tabName).className = 'px-4 py-2 border-b-2 font-medium text-sm transition border-blue-500 text-blue-600';
+        
+        // Update URL without reloading page
+        const url = new URL(window.location);
+        url.searchParams.set('tab', tabName);
+        window.history.pushState({}, '', url);
     }
+    
+    // On page load, check URL for tab parameter and show that tab
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const activeTab = urlParams.get('tab') || 'officials'; // Default to officials tab
+        showTab(activeTab);
+    });
     </script>
 
     <div id="replaceModal" class="fixed inset-0 hidden items-center justify-center bg-black/50 z-50" x-data="officialsHistory()">

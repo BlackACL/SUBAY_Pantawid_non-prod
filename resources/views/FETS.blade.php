@@ -1,6 +1,4 @@
 <x-app-layout>
-    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
@@ -89,7 +87,15 @@
                     <select id="transfer_movement" name="transfer_movement" required
                             class="w-full border rounded p-2 text-sm">
                         <option value="" disabled {{ old('transfer_movement') ? '' : 'selected' }}>-- Select Transfer Movement --</option>
-                        <option value="Issue/Transfer" {{ old('transfer_movement') == 'Issue/Transfer' ? 'selected' : '' }}>Issue / Transfer</option>
+                        
+                        @if(auth()->user()->access_level === 'Provincial DPSC' || auth()->user()->access_level === 'Regional DPSC')
+                            {{-- Provincial/Regional users: Issue/Transfer --}}
+                            <option value="Issue/Transfer" {{ old('transfer_movement') == 'Issue/Transfer' ? 'selected' : '' }}>Issue / Transfer</option>
+                        @else
+                            {{-- Employee users: Return to Lender --}}
+                            <option value="Return to Lender" {{ old('transfer_movement') == 'Return to Lender' ? 'selected' : '' }}>Return to Lender</option>
+                        @endif
+                        
                         <option value="For Surrender" {{ old('transfer_movement') == 'For Surrender' ? 'selected' : '' }}>For Surrender</option>
                         <option value="For Repair" {{ old('transfer_movement') == 'For Repair' ? 'selected' : '' }}>For Repair</option>
                     </select>
@@ -313,12 +319,12 @@
                 repairWrapper.classList.remove('hidden');
                 remarksWrapper.classList.add('hidden');
                 if(remarksSelect) remarksSelect.required = false;
-            } else if (movement === 'Issue/Transfer') {
+            } else if (movement === 'Issue/Transfer' || movement === 'Return to Lender') {
                 repairWrapper.classList.add('hidden');
                 remarksWrapper.classList.remove('hidden');
                 if(remarksSelect) {
                     remarksSelect.required = true;
-                    remarksSelect.value = 'Serviceable'; // Default for Issue/Transfer
+                    remarksSelect.value = 'Serviceable'; // Default for Issue/Transfer and Return to Lender
                 }
             } else {
                 // For Surrender and others
@@ -444,3 +450,6 @@
             document.body.style.cursor = 'default';
         });
 
+
+    </script>
+</x-app-layout>
