@@ -258,28 +258,17 @@
     <!-- Discard Changes Modal -->
     <div 
         x-show="showDiscardModal"
-        class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+        class="fixed inset-0 bg-black bg-opacity-50 z-50"
         style="display: none;">
-        <div class="bg-white rounded-lg shadow-2xl max-w-sm w-full mx-4 overflow-hidden">
-            <div class="bg-red-50 border-b border-red-200 p-6">
-                <div class="flex items-center mb-4">
-                    <svg class="h-6 w-6 text-red-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <h3 class="text-lg font-semibold text-gray-900">Discard Changes?</h3>
-                </div>
-                <p class="text-gray-700">You have unsaved changes. If you close this modal, all changes will be lost.</p>
-            </div>
-            
-            <div class="p-6">
-                <p class="text-sm text-gray-600 mb-6">Are you sure you want to continue?</p>
-                <div class="flex justify-end gap-3">
-                    <button @click="cancelDiscard()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-6 rounded-lg transition-colors">
-                        No, Keep Editing
-                    </button>
-                    <button @click="discardChanges()" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors">
-                        Yes, Discard
-                    </button>
+        <div class="fixed inset-0 flex items-center justify-center">
+            <div class="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4">
+                <div class="p-6 text-center">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Discard changes?</h3>
+                    <p class="text-gray-600 mb-6">You have unsaved changes. Are you sure you want to discard them?</p>
+                    <div class="flex justify-center gap-4">
+                        <button @click="discardChanges()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Yes</button>
+                        <button @click="cancelDiscard()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">No</button>
+                    </div>
                 </div>
             </div>
         </div>

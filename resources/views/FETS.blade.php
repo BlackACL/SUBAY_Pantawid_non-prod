@@ -1,4 +1,6 @@
 <x-app-layout>
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
@@ -155,7 +157,10 @@
 
                 {{-- Inventory Table --}}
                 <div class="mb-4">
-                    <label class="block font-medium text-sm text-gray-700 mb-2">Select Equipment (max 5)</label>
+                    {{-- ✅ FIXED: Simplified label text to be fully driven by JS --}}
+                    <label id="selectUnitsLabel" class="block font-medium text-sm text-gray-700 mb-2">
+                        Select Units to FETS
+                    </label>
                     <table class="w-full table-auto text-sm border">
                         <thead class="bg-[#2e3192]">
                         <tr>
@@ -176,11 +181,12 @@
                         <tbody>
                         @forelse ($inventory as $item)
                             @php
-                                // Minor Improvement: Use `isset` for robustness, though `?? []` already handles it.
                                 $disabledGeneral = isset($inProcessPropertyNos) && in_array($item->PROPERTY_NO, $inProcessPropertyNos);
                                 $disabledRepair  = isset($repairInProcessPropertyNos) && in_array($item->PROPERTY_NO, $repairInProcessPropertyNos)
                                                    && (!isset($returnedFromRepairPropNos) || !in_array($item->PROPERTY_NO, $returnedFromRepairPropNos));
                                 $isReturnedFromRepair = isset($returnedFromRepairPropNos) && in_array($item->PROPERTY_NO, $returnedFromRepairPropNos);
+                                // The item should have a boolean property $item->is_long attached from the controller
+                                $isLong = $item->is_long ?? false;
                             @endphp
                             <tr class="{{ $disabledGeneral || $disabledRepair ? 'bg-gray-100 text-gray-500 italic' : '' }}">
                                 <td class="p-2 text-center">
@@ -194,8 +200,12 @@
                                             FETS in Process
                                         </span>
                                     @else
-                                        {{-- This block now correctly handles both normal AND returned-from-repair items --}}
-                                        <input type="checkbox" name="selected[]" value="{{ $item->PROPERTY_NO }}" class="select-checkbox">
+                                        {{-- ✅ FIXED: Added data-is-long attribute --}}
+                                        <input type="checkbox"
+                                               name="selected[]"
+                                               value="{{ $item->PROPERTY_NO }}"
+                                               class="select-checkbox"
+                                               data-is-long="{{ $isLong ? 'true' : 'false' }}">
 
                                         {{-- We still show the status message, but it no longer blocks the checkbox --}}
                                         @if ($isReturnedFromRepair)
@@ -223,7 +233,7 @@
                 <button type="submit"
                         id="submitBtn"
                         class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm {{ $canSubmit ? '' : 'opacity-50 cursor-not-allowed' }}"
-                        {{ $canSubmit ? '' : 'disabled' }}>
+                    {{ $canSubmit ? '' : 'disabled' }}>
                     Submit FETS Request
                 </button>
                 @if(!$canSubmit)
@@ -237,141 +247,194 @@
 
     {{-- Updated JavaScript --}}
     <script>
-        function updateCheckboxState() {
-            const checkboxes = document.querySelectorAll('input.select-checkbox');
-            const checkedCount = [...checkboxes].filter(cb => cb.checked).length;
-            checkboxes.forEach(cb => {
-                const row = cb.closest('tr');
-                cb.disabled = !cb.checked && checkedCount >= 5;
-                row.classList.toggle('opacity-50', cb.disabled);
-                row.classList.toggle('cursor-not-allowed', cb.disabled);
-            });
-        }
-        document.querySelectorAll('input.select-checkbox').forEach(cb =>
-            cb.addEventListener('change', updateCheckboxState));
-        document.addEventListener('DOMContentLoaded', updateCheckboxState);
-
-        // Transfer Movement Logic
+        // --- Element Definitions ---
         const movementSelect = document.getElementById('transfer_movement');
         const remarksWrapper = document.getElementById('remarks_wrapper');
         const repairWrapper = document.getElementById('repair_destination_wrapper');
+        const form = document.querySelector('form[action="{{ route('fets.generate') }}"]');
+        const selectUnitsLabel = document.getElementById('selectUnitsLabel');
 
+        /**
+         * ✅ UPDATED: Handles checkbox state based on max allowed items and dynamic limit (12/15).
+         */
+        function updateCheckboxState() {
+            const checkboxes = document.querySelectorAll('input.select-checkbox');
+            const checkedBoxes = [...checkboxes].filter(cb => cb.checked);
+            const checkedCount = checkedBoxes.length;
+
+            // --- START DYNAMIC LIMIT LOGIC (NEW) ---
+            // Check if any *selected* item has the 'data-is-long="true"' attribute
+            const hasLongItem = checkedBoxes.some(cb => cb.dataset.isLong === 'true');
+            // Set max items: 12 if a long item is selected, 15 otherwise
+            const currentMaxItems = hasLongItem ? 12 : 15;
+            // --- END DYNAMIC LIMIT LOGIC ---
+
+            const maxReached = checkedCount >= currentMaxItems;
+
+            // Update the main label text dynamically
+            if (selectUnitsLabel) {
+                const limitText = hasLongItem
+                    ? ` (${checkedCount} / 12 max - long descriptions)`
+                    : ` (${checkedCount} / 15 max)`;
+                selectUnitsLabel.textContent = `Select Units to FETS${limitText}`;
+            }
+
+            // Loop over all checkboxes to enforce the limit
+            checkboxes.forEach(cb => {
+                const row = cb.closest('tr');
+                const isServerLocked = row.classList.contains('bg-gray-100');
+                if(isServerLocked) return;
+
+                // Disable if not checked AND the max limit has been reached
+                cb.disabled = !cb.checked && maxReached;
+
+                // Add visual cues
+                row.classList.toggle('opacity-50', cb.disabled);
+                row.classList.toggle('cursor-not-allowed', cb.disabled);
+
+                // Add tooltip
+                if (cb.disabled) {
+                    cb.title = `Maximum ${currentMaxItems} items allowed.`;
+                } else {
+                    cb.title = "";
+                }
+            });
+        }
+
+
+        /**
+         * Handles visibility of Repair Destination / Remarks fields.
+         */
         function toggleFields() {
             const movement = movementSelect.value;
+            const remarksSelect = document.getElementById('remarks');
+
             if (movement === 'For Repair') {
                 repairWrapper.classList.remove('hidden');
                 remarksWrapper.classList.add('hidden');
+                if(remarksSelect) remarksSelect.required = false;
             } else {
                 repairWrapper.classList.add('hidden');
                 remarksWrapper.classList.remove('hidden');
+                if(remarksSelect) remarksSelect.required = true;
             }
         }
 
-        movementSelect.addEventListener('change', toggleFields);
-        document.addEventListener('DOMContentLoaded', toggleFields);
-
-        // Updated filter functions
+        /**
+         * Handles AJAX request for filtering equipment.
+         */
         function filterEquipment() {
             const searchValue = document.querySelector('input[name="search"]').value;
             const perPage = document.querySelector('select[name="per_page"]').value;
-
-            // Show loading indicator
             const tbody = document.querySelector('tbody');
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center p-4">Loading...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center p-4">Loading...</td></tr>'; // Loading indicator
 
-            // Make AJAX request
             fetch(`{{ route('fets.select') }}?per_page=${perPage}&search=${searchValue}&ajax=1`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json',
-                }
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
             })
-            .then(response => response.json())
-            .then(data => {
-                tbody.innerHTML = data.html;
-
-                // Show clear button only if there's a search value
-                const clearButton = document.getElementById('clearButton');
-                if (searchValue.trim() !== '' && clearButton) {
-                    clearButton.style.display = 'block';
-                }
-
-                // Update URL without reload
-                const url = new URL(window.location);
-                if (searchValue) {
-                    url.searchParams.set('search', searchValue);
-                } else {
-                    url.searchParams.delete('search');
-                }
-                window.history.replaceState({}, '', url);
-
-                // Re-initialize checkbox functionality
-                document.querySelectorAll('input.select-checkbox').forEach(cb =>
-                    cb.addEventListener('change', updateCheckboxState)
-                );
-                updateCheckboxState();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                tbody.innerHTML = '<tr><td colspan="3" class="text-center p-4 text-red-600">Error loading data</td></tr>';
-            });
+                .then(response => response.json())
+                .then(data => {
+                    tbody.innerHTML = data.html;
+                    // Show/hide clear button
+                    const clearButton = document.getElementById('clearButton');
+                    if (clearButton) clearButton.style.display = searchValue.trim() !== '' ? 'block' : 'none';
+                    // Update URL
+                    const url = new URL(window.location);
+                    if (searchValue) url.searchParams.set('search', searchValue);
+                    else url.searchParams.delete('search');
+                    window.history.replaceState({}, '', url);
+                    // Re-initialize checkbox listeners and state
+                    document.querySelectorAll('input.select-checkbox').forEach(cb =>
+                        cb.addEventListener('change', updateCheckboxState));
+                    updateCheckboxState(); // Apply state to new rows
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    tbody.innerHTML = '<tr><td colspan="3" class="text-center p-4 text-red-600">Error loading data</td></tr>';
+                });
         }
 
+        /**
+         * Clears the search filter and reloads the table.
+         */
         function clearFilter() {
-            // Clear the search input
             document.querySelector('input[name="search"]').value = '';
-
-            // Hide the clear button
             const clearBtn = document.getElementById('clearButton');
-            if (clearBtn) {
-                clearBtn.style.display = 'none';
-            }
-
-            // Trigger filter to reload table
-            filterEquipment();
+            if (clearBtn) clearBtn.style.display = 'none';
+            filterEquipment(); // Reload table
         }
 
+        /**
+         * Handles changing items per page via AJAX.
+         */
         function changePerPage(perPage) {
             const searchValue = document.querySelector('input[name="search"]').value;
-
-            // Show loading indicator
             const tbody = document.querySelector('tbody');
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center p-4">Loading...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center p-4">Loading...</td></tr>'; // Loading indicator
 
-            // Make AJAX request
             fetch(`{{ route('fets.select') }}?per_page=${perPage}&search=${searchValue}&ajax=1`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json',
-                }
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
             })
-            .then(response => response.json())
-            .then(data => {
-                tbody.innerHTML = data.html;
-
-                // Update URL without reload
-                const url = new URL(window.location);
-                url.searchParams.set('per_page', perPage);
-                window.history.replaceState({}, '', url);
-
-                // Re-initialize checkbox functionality
-                document.querySelectorAll('input.select-checkbox').forEach(cb =>
-                    cb.addEventListener('change', updateCheckboxState)
-                );
-                updateCheckboxState();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                tbody.innerHTML = '<tr><td colspan="3" class="text-center p-4 text-red-600">Error loading data</td></tr>';
-            });
+                .then(response => response.json())
+                .then(data => {
+                    tbody.innerHTML = data.html;
+                    // Update URL
+                    const url = new URL(window.location);
+                    url.searchParams.set('per_page', perPage);
+                    window.history.replaceState({}, '', url);
+                    // Re-initialize checkbox listeners and state
+                    document.querySelectorAll('input.select-checkbox').forEach(cb =>
+                        cb.addEventListener('change', updateCheckboxState));
+                    updateCheckboxState(); // Apply state to new rows
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    tbody.innerHTML = '<tr><td colspan="3" class="text-center p-4 text-red-600">Error loading data</td></tr>';
+                });
         }
 
-        // Function to close alert messages
+        /**
+         * Closes alert messages.
+         */
         function closeAlert(alertId) {
             const alert = document.getElementById(alertId);
-            if (alert) {
-                alert.remove();
-            }
+            if (alert) alert.remove();
         }
+
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', function() {
+            // Checkbox state listeners (also re-added inside AJAX success)
+            document.querySelectorAll('input.select-checkbox').forEach(cb =>
+                cb.addEventListener('change', updateCheckboxState));
+            updateCheckboxState(); // Initial run
+
+            // Transfer movement field visibility
+            movementSelect.addEventListener('change', toggleFields);
+            toggleFields(); // Initial run
+
+            // Add loading cursor on form submit
+            if (form) {
+                form.addEventListener('submit', function() {
+                    // Check validity before changing cursor
+                    if (form.checkValidity()) {
+                        document.body.style.cursor = 'wait';
+                        const submitBtn = document.getElementById('submitBtn');
+                        if(submitBtn) submitBtn.disabled = true;
+                    }
+                });
+            }
+            // Show clear button on load if search exists
+            const searchInput = document.querySelector('input[name="search"]');
+            const clearButton = document.getElementById('clearButton');
+            if (searchInput && clearButton && searchInput.value.trim() !== '') {
+                clearButton.style.display = 'block';
+            }
+        });
+
+        // Reset cursor if user navigates away
+        window.addEventListener('beforeunload', () => {
+            document.body.style.cursor = 'default';
+        });
+
     </script>
 </x-app-layout>

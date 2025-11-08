@@ -13,615 +13,678 @@ use App\Models\FetsLog;
 use App\Models\Inventory;
 use Illuminate\Support\Facades\Log;
 use App\Models\Official;
-use App\Models\User; // add at top if not present
+use App\Models\User;
+use Illuminate\Database\QueryException;
 
 
 class FetsController extends Controller
 {
 
-public function select(Request $request)
-{
-    $user = auth()->user();
+// FetsController.php
 
-    $receivers = DB::table('inventory')
-        ->select('RECEIVER')
-        ->distinct()
-        ->where('RECEIVER', '!=', $user->fullname)
-        ->pluck('RECEIVER');
+    public function select(Request $request)
+    {
+        $user = auth()->user();
 
-    $allEquipment = DB::table('inventory')
-        ->select('PROPERTY_NO', 'GENERAL_DESCRIPTION')
-        ->get();
+        $receivers = DB::table('inventory')
+            ->select('RECEIVER')
+            ->distinct()
+            ->pluck('RECEIVER');
 
-    // 🔹 Units that have been returned from repair
-    $returnedFromRepairPropNos = DB::table('inventory')
-        ->whereNotNull('DPO_REMARKS')
-        ->where('DPO_REMARKS', 'like', 'Returned from Repair:%')
-        ->pluck('PROPERTY_NO')
-        ->map(fn($v) => trim($v))
-        ->toArray();
+        $allEquipment = DB::table('inventory')
+            ->select('PROPERTY_NO', 'GENERAL_DESCRIPTION')
+            ->get();
 
-    // 🔹 General lock list for all items in a pending FETS
-$inProcessPropertyNos = FetsDocument::whereIn('status', ['submitted', 'verified', 'approved'])
-    ->where('transfer_movement', '!=', 'Return from Repair') // <-- ADD THIS LINE
-    ->pluck('property_no')
-    ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
-    ->unique()
-    ->toArray();
+        // 🔹 Units that have been returned from repair
+        $returnedFromRepairPropNos = DB::table('inventory')
+            ->whereNotNull('DPO_REMARKS')
+            ->where('DPO_REMARKS', 'like', 'Returned from Repair:%')
+            ->pluck('PROPERTY_NO')
+            ->map(fn($v) => trim($v))
+            ->toArray();
 
-    // 🔹 ADDED: Specific lock list for items in a "For Repair" FETS
-    $repairInProcessPropertyNos = FetsDocument::whereIn('status', ['submitted', 'verified', 'approved'])
-        ->where('transfer_movement', 'For Repair')
-        ->pluck('property_no')
-        ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
-        ->unique()
-        ->toArray();
+        // 🔹 General lock list for all items in a pending FETS (excluding returns)
+        $inProcessPropertyNos = FetsDocument::whereIn('status', ['submitted', 'verified', 'approved'])
+            ->where('transfer_movement', '!=', 'Return from Repair')
+            ->pluck('property_no')
+            ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
+            ->unique()
+            ->toArray();
 
-    $perPage = $request->input('per_page', session('per_page', 10));
-    session(['per_page' => $perPage]);
+        // 🔹 Specific lock list for items in a "For Repair" FETS
+        $repairInProcessPropertyNos = FetsDocument::whereIn('status', ['submitted', 'verified', 'approved'])
+            ->where('transfer_movement', 'For Repair')
+            ->pluck('property_no')
+            ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
+            ->unique()
+            ->toArray();
 
-    $inventory = DB::table('inventory')
+        // --- ADDED: Determine Max Items ---
+        // Fetch all items for the current user to check for long descriptions etc.
+        $userInventoryForCheck = DB::table('inventory')->where('RECEIVER', $user->fullname)->get();
+        // Define the check function
+        $isLongCheck = fn($items) => $items->contains(fn($item) =>
+            strlen($item->GENERAL_DESCRIPTION ?? '') > 180 || strlen($item->PROPERTY_NO ?? '') > 40 ||
+            strlen($item->SERIAL_NO ?? '') > 60 || strlen($item->PAR_NO ?? '') > 60 ||
+            strlen($item->RECEIVER ?? '') > 35 // Base check
+        );
+        // Determine if any item qualifies as 'long'
+        $useLong = $isLongCheck($userInventoryForCheck);
+        // Set the max items based on whether a long template would be needed
+        $maxItems = $useLong ? 12 : 15;
+        // --- END ADDED ---
+
+        // Handle pagination vs "Show All"
+        $perPage = $request->input('per_page', session('per_page', 10));
+        session(['per_page' => $perPage]);
+
+        $inventoryQuery = DB::table('inventory') // Renamed to avoid conflict
         ->where('RECEIVER', $user->fullname);
 
-    // 🔎 Search by description, property no, or serial no
-    if ($request->filled('search')) {
-        $search = $request->search;
-        $inventory->where(function ($query) use ($search) {
-            $query->where('GENERAL_DESCRIPTION', 'like', "%{$search}%")
-                  ->orWhere('PROPERTY_NO', 'like', "%{$search}%")
-                  ->orWhere('SERIAL_NO', 'like', "%{$search}%");
-        });
-    }
+        // 🔎 Search by description, property no, or serial no
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $inventoryQuery->where(function ($query) use ($search) {
+                $query->where('GENERAL_DESCRIPTION', 'like', "%{$search}%")
+                    ->orWhere('PROPERTY_NO', 'like', "%{$search}%")
+                    ->orWhere('SERIAL_NO', 'like', "%{$search}%");
+            });
+        }
 
-    // Handle pagination vs "Show All"
-    if ($perPage === 'all') {
-        $inventory = $inventory->orderBy('PROPERTY_NO')->get();
-    } else {
-        $inventory = $inventory->orderBy('PROPERTY_NO')
-            ->paginate($perPage)
-            ->appends($request->except('page'));
-    }
+        if ($perPage === 'all') {
+            $inventory = $inventoryQuery->orderBy('PROPERTY_NO')->get();
+        } else {
+            $inventory = $inventoryQuery->orderBy('PROPERTY_NO')
+                ->paginate($perPage)
+                ->appends($request->except('page'));
+        }
 
-    // Handle AJAX request
-    if ($request->ajax() || $request->has('ajax')) {
-        $html = '';
+        // Handle AJAX request
+        if ($request->ajax() || $request->has('ajax')) {
+            $html = '';
 
-        foreach ($inventory as $item) {
-            $disabledGeneral = in_array($item->PROPERTY_NO, $inProcessPropertyNos ?? []);
-            // This now uses the newly added $repairInProcessPropertyNos variable
-            $disabledRepair = in_array($item->PROPERTY_NO, $repairInProcessPropertyNos ?? [])
-                            && !in_array($item->PROPERTY_NO, $returnedFromRepairPropNos ?? []);
-            $isReturnedFromRepair = in_array($item->PROPERTY_NO, $returnedFromRepairPropNos ?? []);
+            // Determine items collection based on pagination type
+            $itemsToLoop = ($inventory instanceof \Illuminate\Pagination\LengthAwarePaginator) ? $inventory->items() : $inventory;
 
-            $rowClass = ($disabledGeneral || $disabledRepair) ? 'bg-gray-100 text-gray-500 italic' : '';
+            foreach ($itemsToLoop as $item) { // Loop through the correct collection
+                $disabledGeneral = in_array($item->PROPERTY_NO, $inProcessPropertyNos ?? []);
+                $disabledRepair = in_array($item->PROPERTY_NO, $repairInProcessPropertyNos ?? [])
+                    && !in_array($item->PROPERTY_NO, $returnedFromRepairPropNos ?? []);
+                $isReturnedFromRepair = in_array($item->PROPERTY_NO, $returnedFromRepairPropNos ?? []);
 
-            $html .= "<tr class='{$rowClass}'>";
-            $html .= "<td class='p-2 text-center'>";
+                $rowClass = ($disabledGeneral || $disabledRepair) ? 'bg-gray-100 text-gray-500 italic' : '';
 
-            // ✅ FIXED: Check for the more specific repair status FIRST
-            if ($disabledRepair) {
-                $html .= '<span class="text-xs inline-block bg-orange-100 text-orange-700 px-2 py-1 rounded">Being Assessed for Repair</span>';
-            } elseif ($disabledGeneral) {
-                $html .= '<span class="text-xs inline-block bg-yellow-100 text-yellow-700 px-2 py-1 rounded">FETS in Process</span>';
-            } else {
-                // This block now correctly handles both normal AND returned-from-repair items
-                $html .= '<input type="checkbox" name="selected[]" value="' . $item->PROPERTY_NO . '" class="select-checkbox">';
+                $html .= "<tr class='{$rowClass}'>";
+                $html .= "<td class='p-2 text-center'>";
 
-                // We still show the status message, but it no longer blocks the checkbox
-                if ($isReturnedFromRepair) {
-                    $html .= '<span class="block text-xs mt-1 text-green-700 font-semibold">(Returned from Repair)</span>';
+                if ($disabledRepair) {
+                    $html .= '<span class="text-xs inline-block bg-orange-100 text-orange-700 px-2 py-1 rounded">Being Assessed for Repair</span>';
+                } elseif ($disabledGeneral) {
+                    $html .= '<span class="text-xs inline-block bg-yellow-100 text-yellow-700 px-2 py-1 rounded">FETS in Process</span>';
+                } else {
+                    $html .= '<input type="checkbox" name="selected[]" value="' . $item->PROPERTY_NO . '" class="select-checkbox">';
+                    if ($isReturnedFromRepair) {
+                        $html .= '<span class="block text-xs mt-1 text-green-700 font-semibold">(Returned from Repair)</span>';
+                    }
                 }
+
+                $html .= "</td>";
+                $html .= "<td class='p-2 text-center'>{$item->PROPERTY_NO}</td>";
+                $html .= "<td class='p-2 text-center'>{$item->GENERAL_DESCRIPTION}</td>";
+                $html .= "</tr>";
             }
 
-            $html .= "</td>";
-            $html .= "<td class='p-2 text-center'>{$item->PROPERTY_NO}</td>";
-            $html .= "<td class='p-2 text-center'>{$item->GENERAL_DESCRIPTION}</td>";
-            $html .= "</tr>";
-        }
-
-        if (empty($html)) {
-            $html = '<tr><td colspan="3" class="text-center p-2">No equipment available</td></tr>';
-        }
-
-        return response()->json(['html' => $html]);
-    }
-
-    // ✅ Fetch repair destinations
-    $repairDestinations = \App\Models\RepairDestination::all();
-
-    // ✅ Provincial DPSC
-    $normalizedProvince = strtolower(trim($user->province ?? ''));
-    $provincialOfficial = \App\Models\Official::where('role', 'Provincial DPSC')
-        ->whereRaw('LOWER(province) = ?', [$normalizedProvince])
-        ->where('active', true)
-        ->first();
-
-    // ✅ Head of Property
-    $headOfProperty = \App\Models\Official::where('role', 'Head of Property')
-        ->where('active', true)
-        ->first();
-
-    $provincialDisplay = $provincialOfficial
-        ? "Provincial DPSC - {$provincialOfficial->fullname}"
-        : "Provincial DPSC - Not Assigned";
-
-    $headOfPropertyDisplay = $headOfProperty
-        ? "Head of Property - {$headOfProperty->fullname}"
-        : "Head of Property - Not Assigned";
-
-    return view('FETS', compact(
-        'receivers',
-        'allEquipment',
-        'inventory',
-        'inProcessPropertyNos',
-        'repairInProcessPropertyNos', // Pass the new variable to the view
-        'returnedFromRepairPropNos',
-        'repairDestinations',
-        'provincialDisplay',
-        'headOfPropertyDisplay'
-    ));
-}
-
-
-
-
-public function selectEmbed(Request $request)
-{
-    $user = auth()->user();
-    $editingFetsId = $request->input('edit'); // Get the FETS ID being edited
-
-    // Get receivers for dropdown - exclude current user
-    $receivers = DB::table('inventory')
-        ->select('RECEIVER')
-        ->distinct()
-        ->where('RECEIVER', '!=', $user->fullname)
-        ->pluck('RECEIVER');
-
-    // All equipment for "Show All" option
-    $allEquipment = DB::table('inventory')->select('PROPERTY_NO', 'GENERAL_DESCRIPTION')->get();
-
-    // 🔹 Units that have been returned from repair
-    $returnedFromRepairPropNos = DB::table('inventory')
-        ->whereNotNull('DPO_REMARKS')
-        ->where('DPO_REMARKS', 'like', 'Returned from Repair:%')
-        ->pluck('PROPERTY_NO')
-        ->map(fn($v) => trim($v))
-        ->toArray();
-
-    // 🔹 General lock list for all items in a pending FETS (EXCEPT the one being edited)
-    $inProcessQuery = FetsDocument::whereIn('status', ['submitted', 'verified', 'approved'])
-        ->where('transfer_movement', '!=', 'Return from Repair');
-    
-    // If editing, exclude this FETS from the lock list
-    if ($editingFetsId) {
-        $inProcessQuery->where('id', '!=', $editingFetsId);
-    }
-    
-    $inProcessPropertyNos = $inProcessQuery
-        ->pluck('property_no')
-        ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
-        ->unique()
-        ->toArray();
-
-    // 🔹 Specific lock list for items in a "For Repair" FETS (EXCEPT the one being edited)
-    $repairQuery = FetsDocument::whereIn('status', ['submitted', 'verified', 'approved'])
-        ->where('transfer_movement', 'For Repair');
-    
-    // If editing, exclude this FETS from the lock list
-    if ($editingFetsId) {
-        $repairQuery->where('id', '!=', $editingFetsId);
-    }
-    
-    $repairInProcessPropertyNos = $repairQuery
-        ->pluck('property_no')
-        ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
-        ->unique()
-        ->toArray();
-
-    // Per page setting
-    $perPage = $request->input('per_page', session('per_page', 10));
-    session(['per_page' => $perPage]);
-
-    // 🔹 Parse pre-selected items for edit mode
-    $selectedItems = [];
-    if ($request->filled('selected_items')) {
-        $selectedItems = array_map('trim', explode(',', $request->input('selected_items')));
-    }
-
-    // User inventory + search (only show items assigned to current user)
-    $inventory = DB::table('inventory')
-        ->where('RECEIVER', $user->fullname);
-
-    if ($request->filled('search')) {
-        $search = $request->search;
-        $inventory->where(function ($query) use ($search) {
-            $query->where('GENERAL_DESCRIPTION', 'like', "%{$search}%")
-                  ->orWhere('PROPERTY_NO', 'like', "%{$search}%")
-                  ->orWhere('SERIAL_NO', 'like', "%{$search}%");
-        });
-    }
-
-    // Handle pagination vs "Show All"
-    if ($perPage === 'all') {
-        $inventory = $inventory->orderBy('PROPERTY_NO')->get();
-    } else {
-        $inventory = $inventory->orderBy('PROPERTY_NO')
-            ->paginate($perPage)
-            ->appends($request->except('page'));
-    }
-
-    // Handle AJAX request
-    if ($request->ajax() || $request->has('ajax')) {
-        $html = '';
-
-        foreach ($inventory as $item) {
-            $disabledGeneral = in_array($item->PROPERTY_NO, $inProcessPropertyNos ?? []);
-            $disabledRepair = in_array($item->PROPERTY_NO, $repairInProcessPropertyNos ?? [])
-                            && !in_array($item->PROPERTY_NO, $returnedFromRepairPropNos ?? []);
-            $isReturnedFromRepair = in_array($item->PROPERTY_NO, $returnedFromRepairPropNos ?? []);
-
-            $rowClass = ($disabledGeneral || $disabledRepair) ? 'bg-gray-100 text-gray-500 italic' : '';
-
-            $html .= "<tr class='{$rowClass}'>";
-            $html .= "<td class='p-2 text-center'>";
-
-            // ✅ FIXED: Check for the more specific repair status FIRST
-            if ($disabledRepair) {
-                $html .= '<span class="text-xs inline-block bg-orange-100 text-orange-700 px-2 py-1 rounded">Being Assessed for Repair</span>';
-            } elseif ($disabledGeneral) {
-                $html .= '<span class="text-xs inline-block bg-yellow-100 text-yellow-700 px-2 py-1 rounded">FETS in Process</span>';
-            } else {
-                // This block now correctly handles both normal AND returned-from-repair items
-                $html .= '<input type="checkbox" name="selected[]" value="' . $item->PROPERTY_NO . '" class="select-checkbox">';
-
-                // We still show the status message, but it no longer blocks the checkbox
-                if ($isReturnedFromRepair) {
-                    $html .= '<span class="block text-xs mt-1 text-green-700 font-semibold">(Returned from Repair)</span>';
-                }
+            if (empty($html)) {
+                $html = '<tr><td colspan="3" class="text-center p-2">No equipment available</td></tr>';
             }
 
-            $html .= "</td>";
-            $html .= "<td class='p-2 text-center'>{$item->PROPERTY_NO}</td>";
-            $html .= "<td class='p-2 text-center'>{$item->GENERAL_DESCRIPTION}</td>";
-            $html .= "</tr>";
+            // Include pagination links in AJAX response if needed, or handle separately in JS
+            $paginationHtml = '';
+            if ($inventory instanceof \Illuminate\Pagination\LengthAwarePaginator && $inventory->hasPages()) {
+                $paginationHtml = $inventory->links()->toHtml();
+            }
+
+            return response()->json(['html' => $html, 'pagination' => $paginationHtml]); // Optionally return pagination
         }
 
-        if (empty($html)) {
-            $html = '<tr><td colspan="3" class="text-center p-2">No equipment available</td></tr>';
-        }
+        // ✅ Fetch repair destinations
+        $repairDestinations = \App\Models\RepairDestination::all();
 
-        return response()->json(['html' => $html]);
-    }
-
-    // Repair destinations from DB
-    $repairDestinations = \App\Models\RepairDestination::all();
-
-    // Normalize province and find Provincial DPSC official (active)
-    $normalizedProvince = strtolower(trim($user->province ?? ''));
-    $provincialOfficial = \App\Models\Official::where('role', 'Provincial DPSC')
-        ->whereRaw('LOWER(province) = ?', [$normalizedProvince])
-        ->where('active', true)
-        ->first();
-
-    // Head of Property (active)
-    $headOfProperty = \App\Models\Official::where('role', 'Head of Property')
-        ->where('active', true)
-        ->first();
-
-    // Build display strings
-    $provincialDisplay = $provincialOfficial
-        ? "Provincial DPSC - {$provincialOfficial->fullname}"
-        : "Provincial DPSC - Not Assigned";
-
-    $headOfPropertyDisplay = $headOfProperty
-        ? "Head of Property - {$headOfProperty->fullname}"
-        : "Head of Property - Not Assigned";
-
-    // Handle edit mode
-    $editFets = null;
-    $prefilledData = [];
-
-    $editingFetsPropertyNos = [];
-    if ($request->has('edit')) {
-        $editFets = FetsDocument::where('id', $request->edit)
-            ->where('user_id', $user->id)
-            ->where('status', 'submitted')
+        // ✅ Get Officials
+        $normalizedProvince = strtolower(trim($user->province ?? ''));
+        $provincialOfficial = \App\Models\Official::where('role', 'Provincial DPSC')
+            ->whereRaw('LOWER(province) = ?', [$normalizedProvince])
+            ->where('active', true)
+            ->first();
+        $headOfProperty = \App\Models\Official::where('role', 'Head of Property')
+            ->where('active', true)
             ->first();
 
-        if ($editFets) {
-            $prefilledData = [
-                'transfer_movement' => $editFets->transfer_movement,
-                'remarks' => $editFets->remarks,
-                'repair_destination' => $editFets->repair_destination,
-                'selected_items' => array_map('trim', explode(',', $editFets->property_no)),
-            ];
+        $provincialDisplay = $provincialOfficial
+            ? "Provincial DPSC - {$provincialOfficial->fullname}"
+            : "Provincial DPSC - Not Assigned";
+        $headOfPropertyDisplay = $headOfProperty
+            ? "Head of Property - {$headOfProperty->fullname}"
+            : "Head of Property - Not Assigned";
 
-            // Get property numbers that are part of this FETS being edited
-            $editingFetsPropertyNos = array_map('trim', explode(',', $editFets->property_no));
+        // Pass the new $maxItems variable
+        return view('FETS', compact(
+            'receivers',
+            'allEquipment',
+            'inventory',
+            'inProcessPropertyNos',
+            'repairInProcessPropertyNos',
+            'returnedFromRepairPropNos',
+            'repairDestinations',
+            'provincialDisplay',
+            'headOfPropertyDisplay',
+            'maxItems' // <-- PASS THE MAX LIMIT HERE
+        ));
+    }
+
+
+
+
+// FetsController.php
+
+// FetsController.php
+
+// FetsController.php
+
+    public function selectEmbed(Request $request)
+    {
+        $user = auth()->user();
+
+        // Get receivers for dropdown
+        $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->pluck('RECEIVER');
+
+        // All equipment for "Show All" option
+        $allEquipment = DB::table('inventory')->select('PROPERTY_NO', 'GENERAL_DESCRIPTION')->get();
+
+        // 🔹 Units that have been returned from repair
+        $returnedFromRepairPropNos = DB::table('inventory')
+            ->whereNotNull('DPO_REMARKS')
+            ->where('DPO_REMARKS', 'like', 'Returned from Repair:%')
+            ->pluck('PROPERTY_NO')
+            ->map(fn($v) => trim($v))
+            ->toArray();
+
+        // 🔹 General lock list for all items in a pending FETS
+        $inProcessPropertyNos = FetsDocument::whereIn('status', ['submitted', 'verified', 'approved'])
+            ->where('transfer_movement', '!=', 'Return from Repair') // Ignore completed returns
+            ->pluck('property_no')
+            ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
+            ->unique()
+            ->toArray();
+
+        // 🔹 Specific lock list for items in a "For Repair" FETS
+        $repairInProcessPropertyNos = FetsDocument::whereIn('status', ['submitted', 'verified', 'approved'])
+            ->where('transfer_movement', 'For Repair')
+            ->pluck('property_no')
+            ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
+            ->unique()
+            ->toArray();
+
+        // ✅ --- UPDATED THRESHOLDS TO MATCH generate() ---
+        // Define the "isLong" check function using the correct limits from generate()
+        $isItemLong = function($item) {
+            // These thresholds MUST match the item-specific checks in generate()
+            return strlen($item->GENERAL_DESCRIPTION ?? '') > 180 || // Correct threshold
+                strlen($item->PROPERTY_NO ?? '') > 40 ||         // Correct threshold
+                strlen($item->SERIAL_NO ?? '') > 60 ||           // Correct threshold
+                strlen($item->PAR_NO ?? '') > 60 ||             // Correct threshold
+                strlen($item->RECEIVER ?? '') > 35;              // Correct threshold
+        };
+        // ✅ --- END UPDATE ---
+
+        // Define thresholds to pass to JS (these should also match generate)
+        $longCheckThresholds = [
+            'description' => 180, 'property_no' => 40, 'serial_no'   => 60,
+            'par_no'      => 60, 'receiver'    => 35, 'remarks'     => 50, // remarks threshold for JS
+        ];
+
+
+        // Per page setting
+        $perPage = $request->input('per_page', session('per_page', 10));
+        session(['per_page' => $perPage]);
+
+        // User inventory + search (only show items assigned to current user)
+        $inventoryQuery = DB::table('inventory')
+            ->where('RECEIVER', $user->fullname);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $inventoryQuery->where(function ($query) use ($search) {
+                $query->where('GENERAL_DESCRIPTION', 'like', "%{$search}%")
+                    ->orWhere('PROPERTY_NO', 'like', "%{$search}%")
+                    ->orWhere('SERIAL_NO', 'like', "%{$search}%");
+            });
         }
-    }
 
-    // Force the view to use embed layout
-    config(['view.paths' => [resource_path('views')]]);
-
-    return view('partials.FETS', [
-        'receivers' => $receivers,
-        'allEquipment' => $allEquipment,
-        'headOfProperty' => $headOfProperty,
-        'inventory' => $inventory,
-        'inProcessPropertyNos' => $inProcessPropertyNos,
-        'repairInProcessPropertyNos' => $repairInProcessPropertyNos,
-        'returnedFromRepairPropNos' => $returnedFromRepairPropNos,
-        'repairDestinations' => $repairDestinations,
-        'provincialDisplay' => $provincialDisplay,
-        'headOfPropertyDisplay' => $headOfPropertyDisplay,
-        'editFets' => $editFets,
-        'prefilledData' => $prefilledData,
-        'editingFetsPropertyNos' => $editingFetsPropertyNos,
-        'hideNavbar' => true,
-    ]);
-}
+        // Handle pagination vs "Show All"
+        if ($perPage === 'all') {
+            $inventoryData = $inventoryQuery->orderBy('PROPERTY_NO')->get();
+            // Manually create paginator for consistency if needed
+            $inventory = new \Illuminate\Pagination\LengthAwarePaginator(
+                $inventoryData,
+                $inventoryData->count(),
+                $inventoryData->count() ?: 1, // Avoid division by zero
+                1, // Current page is 1
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+        } else {
+            $inventory = $inventoryQuery->orderBy('PROPERTY_NO')
+                ->paginate((int)$perPage) // Cast perPage to int
+                ->appends($request->query()); // Append all query params
+        }
 
 
-// 1️⃣ Show modal / prefilled return FETS
-public function showReturnFetsModal(Request $request)
-{
-    $user = auth()->user();
-
-    if ($user->access_level !== 'Provincial DPSC') {
-        abort(403, 'Unauthorized.');
-    }
-
-    // ✅ Only approved "For Repair" FETS
-    $fetsForRepair = FetsDocument::where('status', 'approved')
-        ->where('transfer_movement', 'For Repair')
-        ->whereHas('submitter', function ($q) use ($user) {
-            $q->where('province', $user->province);
-        })
-        ->get();
-
-    // Extract all property numbers from these FETS
-    $propNos = $fetsForRepair->flatMap(function ($fets) {
-        return array_map('trim', explode(',', $fets->property_no));
-    })->unique()->values()->toArray();
-
-    // Fetch units from inventory that are eligible for return
-    $returnableUnits = $propNos
-        ? DB::table('inventory')
-            ->whereIn('PROPERTY_NO', $propNos)
-            ->where(function($q) {
-                $q->whereNull('DPO_REMARKS')
-                  ->orWhere('DPO_REMARKS', 'not like', 'Returned from Repair%');
-            })
-            ->get()
-        : collect();
-
-    // 🔹 Determine the original submitters for each unit
-    $unitSubmitters = [];
-    foreach ($returnableUnits as $unit) {
-        $originalFets = $fetsForRepair->first(function ($f) use ($unit) {
-            $propNos = array_map('trim', explode(',', $f->property_no ?? ''));
-            $cleaned = array_map(fn($p) => preg_replace('/\s+/', '', $p), $propNos);
-            return in_array(preg_replace('/\s+/', '', $unit->PROPERTY_NO), $cleaned, true);
+        // ✅ --- ADD 'is_long' flag to each item ---
+        // Get the items collection (works for both paginator and manual 'all' paginator)
+        $items = $inventory->getCollection();
+        $items->transform(function ($item) use ($isItemLong) {
+            $item->is_long = $isItemLong($item); // Add the boolean flag
+            return $item;
         });
-        $unitSubmitters[$unit->PROPERTY_NO] = $originalFets->submitter->fullname ?? null;
+        // Update the paginator's items if it was paginated
+        if ($inventory instanceof \Illuminate\Pagination\LengthAwarePaginator) {
+            $inventory->setCollection($items);
+        }
+        // --- END 'is_long' flag ---
+
+
+        // Handle AJAX request
+        if ($request->ajax() || $request->has('ajax')) {
+            $html = '';
+            // Use the collection directly if 'all', otherwise use paginator's items
+            $itemsToLoop = ($perPage === 'all') ? $items : $inventory->items();
+
+            foreach ($itemsToLoop as $item) { // Ensure item has is_long property
+                $disabledGeneral = in_array($item->PROPERTY_NO, $inProcessPropertyNos ?? []);
+                $disabledRepair = in_array($item->PROPERTY_NO, $repairInProcessPropertyNos ?? []) && !in_array($item->PROPERTY_NO, $returnedFromRepairPropNos ?? []);
+                $isReturnedFromRepair = in_array($item->PROPERTY_NO, $returnedFromRepairPropNos ?? []);
+                $rowClass = ($disabledGeneral || $disabledRepair) ? 'bg-gray-100 text-gray-500 italic' : '';
+
+                $html .= "<tr class='{$rowClass}'>";
+                $html .= "<td class='p-2 text-center'>";
+                if ($disabledRepair) {
+                    $html .= '<span class="text-xs inline-block bg-orange-100 text-orange-700 px-2 py-1 rounded">Being Assessed for Repair</span>';
+                } elseif ($disabledGeneral) {
+                    $html .= '<span class="text-xs inline-block bg-yellow-100 text-yellow-700 px-2 py-1 rounded">FETS in Process</span>';
+                } else {
+                    // ✅ Add data-is-long attribute to checkbox HTML for AJAX
+                    $html .= '<input type="checkbox" name="selected[]" value="' . $item->PROPERTY_NO . '" class="select-checkbox" data-is-long="' . ($item->is_long ? 'true' : 'false') . '">';
+                    if ($isReturnedFromRepair) {
+                        $html .= '<span class="block text-xs mt-1 text-green-700 font-semibold">(Returned from Repair)</span>';
+                    }
+                }
+                $html .= "</td>";
+                $html .= "<td class='p-2 text-center'>{$item->PROPERTY_NO}</td>";
+                $html .= "<td class='p-2 text-center'>{$item->GENERAL_DESCRIPTION}</td>";
+                $html .= "</tr>";
+            }
+            if (empty($html)) { $html = '<tr><td colspan="3" class="text-center p-2">No equipment available</td></tr>'; }
+
+            // Optionally include pagination for AJAX updates
+            $paginationHtml = '';
+            if ($inventory instanceof \Illuminate\Pagination\LengthAwarePaginator && $inventory->hasPages()) {
+                $paginationHtml = $inventory->links()->toHtml();
+            }
+            return response()->json(['html' => $html, 'pagination' => $paginationHtml]);
+        }
+
+        // Repair destinations & Officials
+        $repairDestinations = \App\Models\RepairDestination::all();
+        $normalizedProvince = strtolower(trim($user->province ?? ''));
+        $provincialOfficial = \App\Models\Official::where('role', 'Provincial DPSC')->whereRaw('LOWER(province) = ?', [$normalizedProvince])->where('active', true)->first();
+        $headOfProperty = \App\Models\Official::where('role', 'Head of Property')->where('active', true)->first();
+        $provincialDisplay = $provincialOfficial ? "Provincial DPSC - {$provincialOfficial->fullname}" : "Provincial DPSC - Not Assigned";
+        $headOfPropertyDisplay = $headOfProperty ? "Head of Property - {$headOfProperty->fullname}" : "Head of Property - Not Assigned";
+
+        // Edit Mode Handling
+        $editFets = null; $prefilledData = []; $editingFetsPropertyNos = [];
+        if ($request->has('edit')) {
+            $editFets = FetsDocument::where('id', $request->edit)
+                ->where('user_id', $user->id)
+                ->where('status', 'submitted')
+                ->first();
+
+            if ($editFets) {
+                $prefilledData = [
+                    'transfer_movement' => $editFets->transfer_movement,
+                    'remarks' => $editFets->remarks,
+                    'repair_destination' => $editFets->repair_destination,
+                    'selected_items' => array_map('trim', explode(',', $editFets->property_no)),
+                    // Add receiver if needed for prefill
+                    'to_receiver' => $editFets->to_receiver,
+                ];
+                $editingFetsPropertyNos = array_map('trim', explode(',', $editFets->property_no));
+            }
+        }
+
+        config(['view.paths' => [resource_path('views')]]);
+
+        // Pass inventory (now with 'is_long' flags) AND thresholds
+        return view('partials.FETS', [
+            'receivers' => $receivers,
+            'allEquipment' => $allEquipment,
+            'headOfProperty' => $headOfProperty,
+            'inventory' => $inventory,
+            'inProcessPropertyNos' => $inProcessPropertyNos,
+            'repairInProcessPropertyNos' => $repairInProcessPropertyNos,
+            'returnedFromRepairPropNos' => $returnedFromRepairPropNos,
+            'repairDestinations' => $repairDestinations,
+            'provincialDisplay' => $provincialDisplay,
+            'headOfPropertyDisplay' => $headOfPropertyDisplay,
+            'editFets' => $editFets,
+            'prefilledData' => $prefilledData,
+            'editingFetsPropertyNos' => $editingFetsPropertyNos,
+            'hideNavbar' => true,
+            'longCheckThresholds' => $longCheckThresholds, // Pass thresholds to JS
+        ]);
     }
-
-    // Build locked property numbers for units already in return FETS (not editable)
-    $lockedPropNos = FetsDocument::whereIn('status', ['submitted','verified','approved'])
-        ->where('transfer_movement', 'Return from Repair')
-        ->pluck('property_no')
-        ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
-        ->unique()
-        ->toArray();
-
-return view('partials.ReturnFETS', [
-    'returnableUnits' => $returnableUnits,
-    'fetsForRepair'   => $fetsForRepair,
-    'lockedPropNos'   => $lockedPropNos,
-    'unitSubmitters'  => $unitSubmitters,
-    'hideNavbar'      => true, // added
-]);
-}
-
-
 
 
 
 // 2️⃣ Submit return FETS (creates new FETS document)
-public function submitReturnFets(Request $request)
-{
-    $request->validate([
-        'selected'   => 'required|array|min:1|max:5',
-        'selected.*' => 'exists:inventory,PROPERTY_NO',
-        'remarks'    => 'nullable|string|max:1000',
-    ]);
+// FetsController.php
 
-    $user = auth()->user();
-    if ($user->access_level !== 'Provincial DPSC') {
-        abort(403, 'Unauthorized.');
-    }
-
-    // Fetch selected inventory rows
-    $units = DB::table('inventory')->whereIn('PROPERTY_NO', $request->selected)->get();
-    if ($units->isEmpty()) {
-        return back()->with('error', 'Selected equipment not found in inventory.');
-    }
-
-    // Fetch FETS that originally sent units for repair
-    $fetsForRepair = FetsDocument::where('transfer_movement', 'For Repair')
-        ->whereIn('status', ['submitted', 'verified', 'approved'])
-        ->get();
-
-    // Determine original submitters for selected units
-    $originalSubmitters = [];
-    foreach ($units as $unit) {
-        $originalFets = $fetsForRepair->first(function ($f) use ($unit) {
-            $propNos = array_map('trim', explode(',', $f->property_no ?? ''));
-            $cleaned = array_map(fn($p) => preg_replace('/\s+/', '', $p), $propNos);
-            return in_array(preg_replace('/\s+/', '', $unit->PROPERTY_NO), $cleaned, true);
-        });
-        $originalSubmitters[$unit->PROPERTY_NO] = $originalFets->submitter->fullname ?? null;
-    }
-
-    // 🔹 Enforce all selected units have the same original submitter
-    if (count(array_unique($originalSubmitters)) > 1) {
-        return back()->with('error', 'You cannot return units from different employees in a single FETS. Select units from the same employee only.');
-    }
-
-    // Original logic mapping receivers, status, repair destinations, PDF generation...
-    $originalReceivers = [];
-    $previousStatus    = [];
-    $previousRemarks   = [];
-    $repairDestinations = [];
-
-    foreach ($units as $unit) {
-        $cleanKey = preg_replace('/\s+/', '', $unit->PROPERTY_NO);
-
-        $originalReceivers[$cleanKey] = $unit->RECEIVER;
-        $previousStatus[$cleanKey]    = $unit->STATUS;
-        $previousRemarks[$cleanKey]   = $unit->DPO_REMARKS;
-
-        $originalFets = $fetsForRepair->first(function ($f) use ($unit) {
-            $propNos = array_map('trim', explode(',', $f->property_no ?? ''));
-            $cleaned = array_map(fn($p) => preg_replace('/\s+/', '', $p), $propNos);
-            return in_array(preg_replace('/\s+/', '', $unit->PROPERTY_NO), $cleaned, true);
-        });
-
-        $repairDestinations[$cleanKey] = $originalFets->repair_destination ?? 'Unknown';
-    }
-
-    // Pick a receiver for PDF (first unit's original receiver)
-    $toReceiver = reset($originalReceivers) ?: null;
-    if (!$toReceiver) {
-        return back()->with('error', 'Receiver not found for selected units.');
-    }
-
-    // Lock inventory + append "Pending Return" (existing logic)
-    DB::table('inventory')
-        ->whereIn('PROPERTY_NO', $request->selected)
-        ->update([
-            'STATUS'      => 'Pending Return',
-            'DPO_REMARKS' => DB::raw("CONCAT(IFNULL(DPO_REMARKS, ''), ' | Pending Return')"),
-            'updated_at'  => now(),
+    public function submitReturnFets(Request $request)
+    {
+        $request->validate([
+            'selected'   => 'required|array|min:1|max:15', // <-- UPDATED MAX TO 15
+            'selected.*' => 'exists:inventory,PROPERTY_NO',
+            'remarks'    => 'nullable|string|max:1000',
         ]);
 
-    // Build fake request to reuse generate() logic (existing PDF creation)
-    $fakeRequest = new Request([
-        'selected' => $request->selected,
-        'transfer_movement' => 'Return from Repair',
-        'remarks' => $request->remarks ?? 'Returned from Repair',
-        'to_receiver' => $toReceiver,
-    ]);
+        $user = auth()->user();
+        if ($user->access_level !== 'Provincial DPSC') {
+            abort(403, 'Unauthorized.');
+        }
 
-    $pdfResult = $this->generate($fakeRequest);
+        // --- ADDED: Determine Max Items dynamically BEFORE validation fails ---
+        // Fetch selected items to check their descriptions/lengths
+        $selectedUnitsForCheck = DB::table('inventory')->whereIn('PROPERTY_NO', $request->selected)->get();
+        $isLongCheck = fn($items) => $items->contains(fn($item) =>
+            strlen($item->GENERAL_DESCRIPTION ?? '') > 180 || strlen($item->PROPERTY_NO ?? '') > 40 ||
+            strlen($item->SERIAL_NO ?? '') > 60 || strlen($item->PAR_NO ?? '') > 60 ||
+            strlen($item->RECEIVER ?? '') > 35
+        );
+        $useLong = $isLongCheck($selectedUnitsForCheck);
+        $maxItemsAllowed = $useLong ? 12 : 15;
 
-    $fets = FetsDocument::latest()->first();
-    if (!$fets) {
-        return back()->with('error', 'Failed to create FETS PDF.');
+        if (count($request->selected) > $maxItemsAllowed) {
+            $errorMessage = $useLong
+                ? "Maximum {$maxItemsAllowed} items allowed when item details require the long format. You selected " . count($request->selected) . "."
+                : "Maximum {$maxItemsAllowed} items allowed for the standard format. You selected " . count($request->selected) . ".";
+            return back()->withInput()->with('error', $errorMessage);
+        }
+        // --- END ADDED ---
+
+
+        // Fetch selected inventory rows (already done above for check)
+        $units = $selectedUnitsForCheck;
+        if ($units->isEmpty()) {
+            return back()->with('error', 'Selected equipment not found in inventory.');
+        }
+
+        // ... (Rest of the method remains the same - Fetching FETS, checking submitters, etc.)
+        $fetsForRepair = FetsDocument::where('transfer_movement', 'For Repair')
+            ->whereIn('status', ['submitted', 'verified', 'approved'])
+            ->with('submitter') // Eager load
+            ->get();
+
+        $originalSubmitters = [];
+        foreach ($units as $unit) {
+            $originalFets = $fetsForRepair->first(function ($f) use ($unit) {
+                $propNos = array_map('trim', explode(',', $f->property_no ?? ''));
+                return in_array($unit->PROPERTY_NO, $propNos);
+            });
+            $originalSubmitters[$unit->PROPERTY_NO] = $originalFets->submitter->fullname ?? null;
+        }
+        if (count(array_unique(array_values($originalSubmitters))) > 1) { // Fixed array_unique usage
+            return back()->with('error', 'You cannot return units from different employees in a single FETS.');
+        }
+
+        $originalReceivers = []; $previousStatus = []; $previousRemarks = []; $repairDestinations = [];
+        foreach ($units as $unit) {
+            $cleanKey = preg_replace('/\s+/', '', $unit->PROPERTY_NO);
+            $originalReceivers[$cleanKey] = $unit->RECEIVER;
+            $previousStatus[$cleanKey]    = $unit->STATUS;
+            $previousRemarks[$cleanKey]   = $unit->DPO_REMARKS;
+            // Use a null-safe operator and correct logic for finding original FETS
+            $originalFets = $fetsForRepair->first(function ($f) use ($unit) {
+                $propNos = array_map('trim', explode(',', $f->property_no ?? ''));
+                return in_array($unit->PROPERTY_NO, $propNos);
+            });
+            $repairDestinations[$cleanKey] = $originalFets->repair_destination ?? 'Unknown';
+        }
+        $toReceiver = reset($originalReceivers) ?: null;
+        if (!$toReceiver) { return back()->with('error', 'Receiver not found.'); }
+
+        // ✅ --- THIS IS THE FIX ---
+        // Replace the commented-out line with this:
+        DB::table('inventory')
+            ->whereIn('PROPERTY_NO', $request->selected)
+            ->update([
+                'STATUS'      => 'Pending Return',
+                'DPO_REMARKS' => DB::raw("CONCAT(IFNULL(DPO_REMARKS, ''), ' | Pending Return')"),
+                'updated_at'  => now(),
+            ]);
+        // ✅ --- END OF FIX ---
+
+        // Generate FETS using fake request
+        $fakeRequest = new Request([
+            'selected' => $request->selected,
+            'transfer_movement' => 'Return from Repair',
+            'remarks' => $request->remarks ?? 'Returned from Repair',
+            'to_receiver' => $toReceiver,
+            'source' => 'return_form' // <-- ADD THIS LINE
+        ]);
+
+        try {
+            // Call generate (which now has its own max item check and error handling)
+            $pdfResult = $this->generate($fakeRequest);
+
+            // Check if generate returned a redirect response with an error
+            if ($pdfResult instanceof \Illuminate\Http\RedirectResponse && $pdfResult->getSession()->has('error')) {
+                // If generate failed, pass the error back and trigger the catch block to revert
+                throw new \Exception($pdfResult->getSession()->get('error'));
+            }
+
+            // Proceed if generate was successful
+            $fets = FetsDocument::where('user_id', $user->id)->latest()->first();
+            if (!$fets) { throw new \Exception('Failed to retrieve generated FETS document.'); }
+
+            // Update form_data
+            $formData = (array) ($fets->form_data ?? []);
+            $formData = array_merge($formData, [
+                'original_receivers'   => $originalReceivers, 'previous_status' => $previousStatus,
+                'previous_remarks'     => $previousRemarks, 'repair_destinations' => $repairDestinations,
+                'return_type'          => 'from_repair',
+            ]);
+            $fets->form_data = $formData;
+            // Remarks for the FETS document itself, separate from PDF content
+            $fets->remarks = $request->remarks ?? 'Returned from Repair';
+            $fets->save();
+
+            // Log the submission
+            FetsLog::create([
+                'property_no' => implode(',', $request->selected),
+                'action'      => 'submitted',
+                'actor'       => $user->fullname,
+                'actor_role'  => $user->access_level,
+                'remarks'     => "Return-from-Repair FETS #{$fets->id} submitted by {$user->fullname}",
+            ]);
+
+            if ($pdfResult instanceof \Illuminate\Http\RedirectResponse) {
+                return $pdfResult->with('success', "Return FETS submitted (ID {$fets->id}).");
+            } else {
+                // Fallback redirect (should not be reached if generate works as expected)
+                return back()->with([
+                    'success'           => "Return FETS submitted (ID {$fets->id}).",
+                    'fets_id'           => $fets->id,
+                    'fets_preview_url'  => route('fets.preview', ['id' => $fets->id]),
+                    'fets_download_url' => route('fets.download', ['id' => $fets->id]),
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            // Revert inventory status if FETS generation or saving fails
+            // Use the $previousStatus and $previousRemarks arrays we already built
+            $statusCase = "";
+            $remarksCase = "";
+            foreach($request->selected as $pn) {
+                $cleanKey = preg_replace('/\s+/', '', $pn);
+                $status = $previousStatus[$cleanKey] ? "'".$previousStatus[$cleanKey]."'" : "NULL";
+                $remarks = $previousRemarks[$cleanKey] ? "'".$previousRemarks[$cleanKey]."'" : "NULL";
+                $statusCase .= " WHEN '{$pn}' THEN {$status}";
+                $remarksCase .= " WHEN '{$pn}' THEN {$remarks}";
+            }
+
+            DB::table('inventory')->whereIn('PROPERTY_NO', $request->selected)->update([
+                'STATUS'      => DB::raw("CASE PROPERTY_NO {$statusCase} END"),
+                'DPO_REMARKS' => DB::raw("CASE PROPERTY_NO {$remarksCase} END"),
+                'updated_at'  => now(),
+            ]);
+
+            Log::error("Return FETS submission failed: " . $e->getMessage());
+            return back()->with('error', 'Failed to submit Return FETS: ' . $e->getMessage());
+        }
     }
-
-    $formData = (array) $fets->form_data;
-    $formData = array_merge($formData, [
-        'original_receivers'   => $originalReceivers,
-        'previous_status'      => $previousStatus,
-        'previous_remarks'     => $previousRemarks,
-        'repair_destinations'  => $repairDestinations,
-        'return_type'          => 'from_repair',
-    ]);
-
-    $fets->form_data = $formData;
-    $fets->remarks = $request->remarks ?? 'Returned from Repair';
-    $fets->save();
-
-    // Logging (unchanged)
-    FetsLog::create([
-        'property_no' => $fets->property_no,
-        'action'      => 'submitted',
-        'actor'       => $user->fullname,
-        'actor_role'  => $user->access_level,
-        'remarks'     => "Return-from-Repair FETS #{$fets->id} submitted by {$user->fullname}",
-    ]);
-
-return back()->with([
-    'success'           => "Return FETS submitted (ID {$fets->id}).",
-    'fets_id'           => $fets->id,
-    'fets_preview_url'  => route('fets.preview', ['id' => $fets->id]),
-    'fets_download_url' => route('fets.download', ['id' => $fets->id]),
-    'hideNavbar'        => true, // added as flash data
-]);
-}
 
 // 🔧 Return from Repair Page (Provincial DPSC)
-public function showReturnFromRepair()
-{
-    $user = auth()->user();
+// FetsController.php
 
-    if ($user->access_level !== 'Provincial DPSC') {
-        abort(403, 'Unauthorized.');
-    }
+// 🔧 Return from Repair Page (Provincial DPSC) - UPDATED
+// FetsController.php
 
-    // ✅ Only approved "For Repair" FETS from the same province
-    $fetsForRepair = FetsDocument::where('status', 'approved')
-        ->where('transfer_movement', 'For Repair')
-        ->whereHas('submitter', function ($q) use ($user) {
-            $q->where('province', $user->province);
-        })
-        ->get();
+// 🔧 Return from Repair Page (Provincial DPSC) - UPDATED with Filters & Pagination
+// FetsController.php
 
-    // Extract all property numbers from these FETS
-    $propNos = $fetsForRepair->flatMap(function ($fets) {
-        return array_map('trim', explode(',', $fets->property_no));
-    })->unique()->values()->toArray();
+// FetsController.php
 
-    // Fetch units from inventory that are eligible for return with pagination
-    $returnableUnits = $propNos
-        ? DB::table('inventory')
-            ->whereIn('PROPERTY_NO', $propNos)
-            ->where(function($q) {
-                $q->whereNull('DPO_REMARKS')
-                  ->orWhere('DPO_REMARKS', 'not like', 'Returned from Repair%');
+// 🔧 Return from Repair Page (Provincial DPSC) - UPDATED with Filters & is_long flag
+    public function showReturnFromRepair(Request $request)
+    {
+        $user = auth()->user();
+
+        if ($user->access_level !== 'Provincial DPSC') {
+            abort(403, 'Unauthorized.');
+        }
+
+        // Fetch original "For Repair" FETS documents
+        $fetsForRepair = FetsDocument::where('status', 'approved')
+            ->where('transfer_movement', 'For Repair')
+            ->whereHas('submitter', function ($q) use ($user) {
+                $q->where('province', $user->province);
             })
-            ->paginate(10)
-        : collect();
+            ->with('submitter') // Eager load submitter for efficiency
+            ->get();
 
-    // Determine the original submitters for each unit (handle paginated data)
-    $unitSubmitters = [];
-    if ($returnableUnits && method_exists($returnableUnits, 'items')) {
-        foreach ($returnableUnits->items() as $unit) {
-            $originalFets = $fetsForRepair->first(function ($f) use ($unit) {
-                $propNos = array_map('trim', explode(',', $f->property_no ?? ''));
-                $cleaned = array_map(fn($p) => preg_replace('/\s+/', '', $p), $propNos);
-                return in_array(preg_replace('/\s+/', '', $unit->PROPERTY_NO), $cleaned, true);
+        // Get all unique property numbers eligible for return
+        $propNos = $fetsForRepair->flatMap(fn($fets) => array_map('trim', explode(',', $fets->property_no)))
+            ->unique()->values()->toArray();
+
+        // Base query for returnable units
+        $returnableUnitsQuery = $propNos
+            ? DB::table('inventory')
+                ->whereIn('PROPERTY_NO', $propNos)
+                ->where(function($q) { // Check if not already returned
+                    $q->whereNull('DPO_REMARKS')
+                        ->orWhere('DPO_REMARKS', 'not like', 'Returned from Repair%');
+                })
+            : null; // Use null if no property numbers to query
+
+        // Apply Search Filter if provided
+        if ($returnableUnitsQuery && $request->filled('search')) {
+            $search = $request->search;
+            $returnableUnitsQuery->where(function ($query) use ($search) {
+                $query->where('PROPERTY_NO', 'like', "%{$search}%")
+                    ->orWhere('GENERAL_DESCRIPTION', 'like', "%{$search}%")
+                    ->orWhere('SERIAL_NO', 'like', "%{$search}%");
+                // Note: Searching Original Owner efficiently might require joins or post-filtering
             });
-            $unitSubmitters[$unit->PROPERTY_NO] = $originalFets->submitter->fullname ?? null;
         }
-    } else {
-        foreach ($returnableUnits as $unit) {
-            $originalFets = $fetsForRepair->first(function ($f) use ($unit) {
-                $propNos = array_map('trim', explode(',', $f->property_no ?? ''));
-                $cleaned = array_map(fn($p) => preg_replace('/\s+/', '', $p), $propNos);
-                return in_array(preg_replace('/\s+/', '', $unit->PROPERTY_NO), $cleaned, true);
+
+        // Handle Pagination Settings
+        $perPage = $request->input('per_page', session('return_per_page', 10));
+        session(['return_per_page' => $perPage]);
+        $totalReturnableCount = $returnableUnitsQuery ? $returnableUnitsQuery->count() : 0; // Get total before pagination
+
+        // Execute Query and Paginate (or create empty paginator)
+        if ($returnableUnitsQuery) {
+            if ($perPage === 'all') {
+                $returnableUnitsCollection = $returnableUnitsQuery->orderBy('PROPERTY_NO')->get();
+                // Manually create paginator for 'all' to ensure consistency in the view
+                $returnableUnits = new \Illuminate\Pagination\LengthAwarePaginator(
+                    $returnableUnitsCollection,
+                    $totalReturnableCount,
+                    $totalReturnableCount ?: 1, // Avoid division by zero
+                    1, // Current page is 1
+                    ['path' => $request->url(), 'query' => $request->query()] // Keep existing query params
+                );
+            } else {
+                // Paginate normally and append all query parameters
+                $returnableUnits = $returnableUnitsQuery->orderBy('PROPERTY_NO')->paginate((int)$perPage)->appends($request->query());
+            }
+        } else {
+            // Create an empty Paginator instance if no query needed
+            $returnableUnits = new \Illuminate\Pagination\LengthAwarePaginator(
+                collect(), 0, (int)$perPage ?: 10, $request->input('page', 1),
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+        }
+
+        // Define isItemLong check function (matching generate method)
+        $isItemLong = function($item) {
+            return strlen($item->GENERAL_DESCRIPTION ?? '') > 180 ||
+                strlen($item->PROPERTY_NO ?? '') > 40 ||
+                strlen($item->SERIAL_NO ?? '') > 60 ||
+                strlen($item->PAR_NO ?? '') > 60 ||
+                strlen($item->RECEIVER ?? '') > 35;
+        };
+
+        // Determine original submitters AND add 'is_long' flag for the CURRENT PAGE items
+        $unitSubmitters = [];
+        $currentPageItems = collect($returnableUnits->items()); // Get collection for current page
+        $currentPageItems->transform(function ($item) use ($isItemLong, $fetsForRepair, &$unitSubmitters) {
+            // Add the is_long flag
+            $item->is_long = $isItemLong($item);
+
+            // Find original submitter (existing logic)
+            $originalFets = $fetsForRepair->first(function ($f) use ($item) {
+                $fPropNos = array_map('trim', explode(',', $f->property_no ?? ''));
+                return in_array($item->PROPERTY_NO, $fPropNos);
             });
-            $unitSubmitters[$unit->PROPERTY_NO] = $originalFets->submitter->fullname ?? null;
+            $unitSubmitters[$item->PROPERTY_NO] = $originalFets->submitter->fullname ?? 'Unknown';
+
+            return $item; // Return the modified item
+        });
+        // Update the paginator's collection with the modified items (including is_long flag)
+        if ($returnableUnits instanceof \Illuminate\Pagination\LengthAwarePaginator) {
+            $returnableUnits->setCollection($currentPageItems);
         }
+
+        // Build locked property numbers list (Unchanged)
+        $lockedPropNos = FetsDocument::whereIn('status', ['submitted','verified','approved'])
+            ->where('transfer_movement', 'Return from Repair')
+            ->pluck('property_no')
+            ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
+            ->unique()
+            ->toArray();
+
+        // Return the view with all necessary data
+        return view('adminDPSC.Provincial.ReturnFromRepair', [
+            'returnableUnits' => $returnableUnits, // Now contains items with ->is_long
+            'fetsForRepair'   => $fetsForRepair,
+            'lockedPropNos'   => $lockedPropNos,
+            'unitSubmitters'  => $unitSubmitters,
+            // 'maxItems' is no longer passed; calculated by JS
+            'totalReturnableCount' => $totalReturnableCount, // Pass total count for 'Show All'
+        ]);
     }
 
-    // Build locked property numbers for units already in return FETS (not editable)
-    $lockedPropNos = FetsDocument::whereIn('status', ['submitted','verified','approved'])
-        ->where('transfer_movement', 'Return from Repair')
-        ->pluck('property_no')
-        ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
-        ->unique()
-        ->toArray();
-
-    return view('adminDPSC.Provincial.ReturnFromRepair', [
-        'returnableUnits' => $returnableUnits,
-        'fetsForRepair'   => $fetsForRepair,
-        'lockedPropNos'   => $lockedPropNos,
-        'unitSubmitters'  => $unitSubmitters,
-    ]);
-}
 
 public function submittedEmbed()
 {
@@ -637,136 +700,251 @@ public function submittedEmbed()
 
 
 
-public function generate(Request $request)
-{
-    // 1. Validation
-    $validated = $request->validate([
-        'selected'           => 'required|array|min:1|max:5',
-        'transfer_movement'  => 'required|string',
-        'remarks'            => 'required|string',
-        'repair_destination' => 'nullable|string|exists:repair_destinations,name',
-        'to_receiver'        => 'nullable|string',
-    ]);
+    public function generate(Request $request)
+    {
+        // 1. Validation
+        $validated = $request->validate([
+            'selected'           => 'required|array|min:1|max:15',
+            'transfer_movement'  => 'required|string',
+            'remarks'            => 'required|string',
+            'repair_destination' => 'nullable|string|exists:repair_destinations,name',
+            'to_receiver'        => 'nullable|string',
+        ]);
 
-    // 2. Initial Data Gathering
-    $user = auth()->user();
-    $movement = $validated['transfer_movement'];
-    $finalRemarks = ($movement === 'For Repair') ? 'Repair' : $validated['remarks'];
-    $toPerson = $this->determineReceiver($user, $movement, $validated['remarks'], $validated);
-    $allItems = DB::table('inventory')->whereIn('PROPERTY_NO', $validated['selected'])->get();
+        // 2. Initial Data Gathering
+        $user     = auth()->user();
+        $movement = $validated['transfer_movement'];
+        $finalRemarks = ($movement === 'For Repair') ? 'Repair' : $validated['remarks'];
+        $toPerson = $this->determineReceiver($user, $movement, $validated['remarks'], $validated);
+        $allItems = DB::table('inventory')->whereIn('PROPERTY_NO', $validated['selected'])->get();
 
-    if ($allItems->isEmpty()) {
-        return back()->with('error', 'Selected equipment not found.');
-    }
+        if ($allItems->isEmpty()) {
+            return back()->with('error', 'Selected equipment not found.');
+        }
+        $itemCount = count($allItems);
 
-    // 3. Determine Template and Config
-    $isLong = fn($items) => $items->contains(fn($item) =>
-        strlen($item->GENERAL_DESCRIPTION ?? '') > 120 || strlen($item->PROPERTY_NO ?? '') > 20 ||
-        strlen($item->SERIAL_NO ?? '') > 20 || strlen($item->PAR_NO ?? '') > 30 ||
-        strlen($item->RECEIVER ?? '') > 35 || strlen($toPerson) > 35 || strlen($validated['remarks']) > 25
-    );
+        // ✅ NEW: Get the actual office from the current user.
+        // Use the user's defined office, with a fallback.
+        $userOffice = $this->getAbbreviatedOffice($user->office ?? 'Pantawid (RPMO)');
+        $date = now()->format('F d, Y');
 
-    $useLong = $isLong($allItems);
-    $itemCount = count($allItems);
-    $templateName = 'FETS-FO-9' . ($useLong ? '-long' : '') . ($itemCount > 1 ? '-for' . $itemCount : '') . '.pdf';
+        // 3. Determine if Long Template is Needed
+        $isLongCheck = fn($items) => $items->contains(fn($item) =>
+            strlen($item->GENERAL_DESCRIPTION ?? '') > 180 || strlen($item->PROPERTY_NO ?? '') > 40 ||
+            strlen($item->SERIAL_NO ?? '') > 60 || strlen($item->PAR_NO ?? '') > 60 ||
+            strlen($item->RECEIVER ?? '') > 35 || strlen($toPerson) > 35 || strlen($validated['remarks']) > 50
+        );
+        $useLong = $isLongCheck($allItems);
 
-    // ✅ --- THIS IS THE FIX --- ✅
-    // First, get the entire config file as an array.
-    $configSet = config('fets_coords');
-    // Then, access the key from the array. This handles keys with dots correctly.
-    $cfg = $configSet[$templateName] ?? null;
+        // 4. Conditional Max Items Check
+        $maxItems = $useLong ? 12 : 15;
+        if ($itemCount > $maxItems) {
+            $errorMessage = $useLong
+                ? "Maximum {$maxItems} items allowed when using the long template format due to content length. You selected {$itemCount}."
+                : "Maximum {$maxItems} items allowed for the standard template format. You selected {$itemCount}.";
+            return back()->withInput()->with('error', $errorMessage);
+        }
 
-    if (!$cfg) {
-        return back()->with('error', "No template config found for '{$templateName}'.");
-    }
+        // 5. Determine Template Name and Config
+        $templateName = 'FETS-FO-9' . ($useLong ? '-long' : '') . ($itemCount > 1 ? '-for' . $itemCount : '') . '.pdf';
+        $configSet = config('fets_coords');
+        $cfg = $configSet[$templateName] ?? null;
 
-    $columnLayout = $configSet['item_columns'][($useLong ? 'long' : 'standard')];
-    $lineHeight = $cfg['line_height'];
+        if (!$cfg) {
+            return back()->with('error', "No template config found for '{$templateName}'. Ensure templates for up to {$maxItems} items exist.");
+        }
 
-    // 4. PDF Generation Setup
-    $pdf = new \setasign\Fpdi\Fpdi();
-    $pageCount = $pdf->setSourceFile(storage_path("app/templates/{$templateName}"));
+        $columnLayout = $configSet['item_columns'][($useLong ? 'long' : 'standard')];
+        $lineHeight = $cfg['line_height'];
 
-    $isPage2Allowed = in_array($templateName, ['FETS-FO-9-long.pdf','FETS-FO-9-long-for2.pdf','FETS-FO-9-long-for3.pdf','FETS-FO-9-long-for4.pdf','FETS-FO-9-long-for5.pdf']);
-    $page2FieldsAlways = ['requested_by','recommending','approving','received_by'];
-    $page2ExtraForMultiLong = ['from_office','from_person','to_office','to_person'];
-    $fieldsOnPage2 = $isPage2Allowed ? array_merge($page2FieldsAlways, in_array($templateName, ['FETS-FO-9-long-for3.pdf','FETS-FO-9-long-for4.pdf','FETS-FO-9-long-for5.pdf']) ? $page2ExtraForMultiLong : []) : [];
+        // 6. PDF Generation Setup
+        $pdf = new \setasign\Fpdi\Fpdi();
+        $templatePath = storage_path("app/templates/{$templateName}");
+        if (!Storage::disk('local')->exists("templates/{$templateName}")) {
+            return back()->with('error', "Template file not found: {$templateName}");
+        }
+        $pageCount = $pdf->setSourceFile($templatePath);
 
-    // 5. Data for Static Fields
-    $staticData = [
-        'fets_date'     => now()->format('F d, Y'),
-        'from_office'   => 'Pantawid (RPMO)',
-        'to_office'     => 'Pantawid (RPMO)',
-        'from_person'   => $allItems->first()->RECEIVER ?? '',
-        'to_person'     => $toPerson,
-        'requested_by'  => $allItems->first()->RECEIVER ?? '',
-        'received_by'   => $toPerson,
-        'recommending'  => \App\Models\Official::where('role', 'Recommending')->first()->fullname ?? 'N/A',
-        'approving'     => \App\Models\Official::where('role', 'Approving')->first()->fullname ?? 'N/A',
-    ];
+        // 7. Two-Page Logic Setup
+        $isLongTemplate = $useLong;
+        $itemCountFromTemplate = $itemCount;
 
-    for ($i = 1; $i <= $pageCount; $i++) {
-        $tpl = $pdf->importPage($i);
-        $size = $pdf->getTemplateSize($tpl);
-        $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
-        $pdf->useTemplate($tpl);
-        $pdf->SetFont('Helvetica', '', 8);
-        $pdf->SetTextColor(0, 0, 0);
+        $fieldsOnPage2 = []; // Start empty
+        $signatureFields = ['requested_by', 'recommending', 'approving', 'received_by'];
+        $toFields = ['to_office', 'to_person'];
+        $fromFields = ['from_office', 'from_person'];
 
-        // 6. Write Static Fields based on which page we are on
-        foreach ($cfg['fields'] as $fieldName => $fieldConfig) {
-            $usePage2 = in_array($fieldName, $fieldsOnPage2);
-            if (isset($staticData[$fieldName]) && (($i === 1 && !$usePage2) || ($i === 2 && $usePage2))) {
-                $pdf->SetXY($fieldConfig['x'], $fieldConfig['y']);
-                $wrappedValue = $this->wrapDescription($staticData[$fieldName], $fieldConfig['wrap']);
-                $pdf->MultiCell($fieldConfig['width'], $lineHeight, $wrappedValue, 0);
+        if (!$isLongTemplate) {
+            if ($itemCountFromTemplate == 15) {
+                $fieldsOnPage2 = array_merge($signatureFields, $toFields);
+            } elseif ($itemCountFromTemplate == 14) {
+                $fieldsOnPage2 = $signatureFields;
+            }
+        } else {
+            if ($itemCountFromTemplate >= 9 && $itemCountFromTemplate <= 12) {
+                $fieldsOnPage2 = array_merge($signatureFields, $toFields, $fromFields);
+            } elseif ($itemCountFromTemplate == 8) {
+                $fieldsOnPage2 = $signatureFields;
             }
         }
 
-        // 7. Write Item Rows using the helper (ONLY on the first page)
-        if ($i === 1) {
-            if ($itemCount === 1) {
-                $this->renderPdfItemRow($pdf, $allItems->first(), $cfg['item_row_y'], $lineHeight, $finalRemarks, $columnLayout);
-            } else {
-                foreach ($allItems as $idx => $item) {
-                    $y = $cfg['base_y'] + ($cfg['y_offset'] * $idx);
-                    $this->renderPdfItemRow($pdf, $item, $y, $lineHeight, $finalRemarks, $columnLayout);
+        // 8. Data for Static Fields (Updated to use wrapPersonOffice helper)
+        $staticData = [
+            'fets_date'     => now()->format('F d, Y'),
+            'from_office'   => $userOffice,     // ✅ Use dynamic user office
+            'to_office'     => $userOffice,     // ✅ Use dynamic user office
+            'from_person'   => $allItems->first()->RECEIVER ?? '',
+            'to_person'     => $toPerson,
+            'requested_by'  => $allItems->first()->RECEIVER ?? '',
+            'received_by'   => $toPerson,
+            'recommending'  => \App\Models\Official::where('role', 'Recommending')->where('active', true)->first()->fullname ?? 'N/A',
+            'approving'     => \App\Models\Official::where('role', 'Approving')->where('active', true)->first()->fullname ?? 'N/A',
+        ];
+
+        // 9. Loop through pages and write PDF content
+        for ($i = 1; $i <= $pageCount; $i++) {
+            $tpl = $pdf->importPage($i);
+            $size = $pdf->getTemplateSize($tpl);
+            $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+            $pdf->useTemplate($tpl);
+            $pdf->SetFont('Helvetica', '', 8);
+            $pdf->SetTextColor(0, 0, 0);
+
+            // Write Static Fields based on which page we are on
+            foreach ($cfg['fields'] as $fieldName => $fieldConfig) {
+                $isOnPage2 = in_array($fieldName, $fieldsOnPage2);
+                if (isset($staticData[$fieldName])) {
+                    if (($i === 1 && !$isOnPage2) || ($i === 2 && $isOnPage2)) {
+                        $pdf->SetXY($fieldConfig['x'], $fieldConfig['y']);
+                        $wrapLength = $fieldConfig['wrap'] ?? 30;
+                        $fieldWidth = $fieldConfig['width'] ?? 40;
+
+                        // ✅ Use wrapPersonOffice for all signatory/office fields
+                        if (in_array($fieldName, ['from_office', 'to_office', 'from_person', 'to_person', 'requested_by', 'recommending', 'approving', 'received_by'])) {
+                            $wrappedValue = $this->wrapPersonOffice($staticData[$fieldName], $fieldConfig['wrap']);
+                        } else {
+                            // Default to wrapDescription for FETS date and item details in case they are defined here
+                            $wrappedValue = $this->wrapDescription($staticData[$fieldName], $fieldConfig['wrap']);
+                        }
+
+                        $pdf->MultiCell($fieldWidth, $lineHeight, $wrappedValue, 0);
+                    }
+                }
+            }
+
+            // 10. Write Item Rows using the helper (ONLY on the first page)
+            if ($i === 1) {
+                if ($itemCount === 1) {
+                    $itemRowY = $cfg['item_row_y'] ?? 50;
+                    $this->renderPdfItemRow($pdf, $allItems->first(), $itemRowY, $lineHeight, $finalRemarks, $columnLayout);
+                } else {
+                    $baseY = $cfg['base_y'] ?? 50;
+                    $yOffset = $cfg['y_offset'] ?? 6;
+                    foreach ($allItems as $idx => $item) {
+                        $y = $baseY + ($yOffset * $idx);
+                        $this->renderPdfItemRow($pdf, $item, $y, $lineHeight, $finalRemarks, $columnLayout);
+                    }
                 }
             }
         }
+
+        // 11. Save PDF and Create Database Record (with Error Handling)
+        $fileName = 'fets_' . now()->format('Ymd_His') . '_' . $itemCount . 'items.pdf';
+        $filePath = "public/fets/{$fileName}";
+        Storage::put($filePath, $pdf->Output('S'));
+
+        try {
+            $fets = FetsDocument::create([
+                'property_no'        => implode(',', $validated['selected']),
+                'to_receiver'        => $toPerson,
+                'remarks'            => $finalRemarks,
+                'transfer_movement'  => $movement,
+                'repair_destination' => ($movement === 'For Repair') ? $validated['repair_destination'] : null,
+                'user_id'            => $user->id,
+                'file_name'          => $fileName,
+                'file_path'          => $filePath,
+                'status'             => 'submitted',
+            ]);
+
+// 12. Redirect
+// Check if the request originated from the 'Return from Repair' form
+            if ($request->get('source') === 'return_form') {
+                // If it's a Return from Repair, redirect back to the previous page (the form)
+                // The calling controller (submitReturnFets) will handle the final redirect back.
+                // We just need to make sure we return a success signal.
+
+                // A simple return statement here works, as the calling method is set up
+                // to handle this return value and issue the final redirect()->back().
+                return [
+                    'success'           => 'FETS submitted and PDF generated successfully.',
+                    'fets_id'           => $fets->id,
+                    'fets_preview_url'  => route('fets.preview', ['id' => $fets->id]),
+                    'fets_download_url' => route('fets.download', ['id' => $fets->id]),
+                ];
+
+            } else {
+                // For all other FETS movements (the default behavior)
+                $redirectRoute = $request->has('embed') ? 'fets.select.embed' : 'fets.select';
+                return redirect()->route($redirectRoute)->with([
+                    'success'           => 'FETS submitted and PDF generated successfully.',
+                    'fets_id'           => $fets->id,
+                    'fets_preview_url'  => route('fets.preview', ['id' => $fets->id]),
+                    'fets_download_url' => route('fets.download', ['id' => $fets->id]),
+                ]);
+            }
+
+        } catch (QueryException $e) {
+            Storage::delete($filePath);
+            if ($e->getCode() === '22001' || str_contains($e->getMessage(), 'Data too long')) {
+                return back()->withInput()->with('error', 'Too many items selected. The list of property numbers is too long to save (max ~15 items recommended due to database limits).');
+            } else {
+                Log::error("FETS creation failed: " . $e->getMessage());
+                return back()->withInput()->with('error', 'An unexpected database error occurred while saving the FETS document.');
+            }
+        } catch (\Exception $e) {
+            Storage::delete($filePath);
+            Log::error("FETS creation failed: " . $e->getMessage());
+            return back()->withInput()->with('error', 'An unexpected error occurred while saving the FETS document.');
+        }
     }
 
-    // 8. Save PDF and Create Database Record
-    $fileName = 'fets_' . now()->format('Ymd_His') . '.pdf';
-    $filePath = "public/fets/{$fileName}";
-    Storage::put($filePath, $pdf->Output('S'));
+// FetsController.php - Inside the class FetsController
 
-    $fets = FetsDocument::create([
-        'property_no'        => implode(',', $validated['selected']),
-        'to_receiver'        => $toPerson,
-        'remarks'            => $finalRemarks,
-        'transfer_movement'  => $movement,
-        'repair_destination' => ($movement === 'For Repair') ? $validated['repair_destination'] : null,
-        'user_id'            => $user->id,
-        'file_name'          => $fileName,
-        'file_path'          => $filePath,
-        'status'             => 'submitted',
-    ]);
+    // ✅ ADDED: Map for converting long office names to short versions
+    private $officeAbbreviations = [
+        'PANTAWID PAMILYA PILIPINO PROGRAM DIVISION, PANTAWID (RPMO)' => 'Pantawid (RPMO)', // Example
+        'MONKAYO MUNICIPAL OPERATIONS OFFICE' => 'Monkayo MOO',
+        'COMPOSTELA MUNICIPAL OPERATIONS OFFICE' => 'Compostela MOO',
+        'MACO MUNICIPAL OPERATIONS OFFICE' => 'Maco MOO',
+        'NABUNTURAN (CAPITAL) MUNICIPAL OPERATIONS OFFICE' => 'Nabunturan MOO',
+        // Add all your long office names here as keys
+        // (This array needs to be fully populated with all long names from your DB)
+        // For simplicity, let's use a placeholder for now:
+        'LONG OFFICE NAME HERE' => 'SHORT OFFICE HERE',
+        // Example DSWD office from general knowledge (if applicable)
+        'DSWD FIELD OFFICE XI' => 'DSWD FO XI',
+        // Ensure the full name is captured if you need it shortened
+        // You will need to fully populate this list from your database
+    ];
 
-    // 9. Redirect
-    $redirectRoute = $request->has('embed') ? 'fets.select.embed' : 'fets.select';
-    return redirect()->route($redirectRoute)->with([
-        'success'           => 'FETS submitted and PDF generated.',
-        'fets_id'           => $fets->id,
-        'fets_preview_url'  => route('fets.preview', ['id' => $fets->id]),
-        'fets_download_url' => route('fets.download', ['id' => $fets->id]),
-    ]);
-}
+    /**
+     * Helper: Converts long office names to abbreviations for PDF display.
+     */
+    private function getAbbreviatedOffice(string $officeName): string
+    {
+        // Use your existing User Controller map as a reference, or the explicit map above.
+        // For now, let's try to grab a safe name if the standard name is long.
+        $standardAbbr = [
+            'PANTAWID PAMILYA PILIPINO PROGRAM DIVISION, PANTAWID (RPMO)' => 'Pantawid (RPMO)',
+        ];
 
+        // Normalize the input office name to match case/spaces in the map keys
+        $normalizedOffice = trim(strtoupper($officeName));
 
-/**
- * Renders a single inventory item row onto the PDF using a dynamic column layout.
- */
+        // Return the abbreviation if found, otherwise return the original name
+        return $this->officeAbbreviations[$normalizedOffice] ?? $officeName;
+    }
+
 private function renderPdfItemRow(&$pdf, $item, $y, $lineHeight, $remarks, $columnLayout)
 {
     foreach ($columnLayout as $field => $config) {
@@ -795,7 +973,6 @@ public function update(Request $request)
         'transfer_movement'  => 'required|string',
         'remarks'            => 'required|string',
         'repair_destination' => 'nullable|string|exists:repair_destinations,name',
-        'to_receiver'        => 'nullable|string', // ✅ ADDED: Missing validation for to_receiver
     ]);
 
     $user = auth()->user();
@@ -820,37 +997,32 @@ public function update(Request $request)
 
     $toPerson = $this->determineReceiver($user, $movement, $remarks, $validatedWithDefaults);
 
-    // ✅ FIXED: Use a database transaction to ensure atomicity
-    DB::beginTransaction();
-    
+    // Create a new FETS entry using the generate method and then update the existing one
+    $tempRequest = new Request([
+        'selected' => $validated['selected'],
+        'transfer_movement' => $movement,
+        'remarks' => $remarks,
+        'repair_destination' => $validated['repair_destination'] ?? null,
+        'embed' => '1'
+    ]);
+
+    // Temporarily switch the request context
+    $originalRequest = request();
+    app()->instance('request', $tempRequest);
+
     try {
-        // Create a temporary request for PDF generation
-        $tempRequest = new Request([
-            'selected' => $validated['selected'],
-            'transfer_movement' => $movement,
-            'remarks' => $remarks,
-            'repair_destination' => $validated['repair_destination'] ?? null,
-            'embed' => '1',
-            'is_update' => true // Flag to indicate this is an update operation
-        ]);
-
-        // Temporarily switch the request context
-        $originalRequest = request();
-        app()->instance('request', $tempRequest);
-
-        // Call generate to create PDF - this will create a temporary FETS
+        // Call generate to create PDF and get new FETS data
         $result = $this->generate($tempRequest);
 
         // Restore original request
         app()->instance('request', $originalRequest);
 
-        // Get the newly created FETS (last one for this user, excluding the one being edited)
+        // Get the newly created FETS (last one for this user)
         $newFets = FetsDocument::where('user_id', $user->id)
-            ->where('id', '!=', $fets->id)
             ->latest('created_at')
             ->first();
 
-        if ($newFets) {
+        if ($newFets && $newFets->id !== $fets->id) {
             // Copy the new PDF file info to the original FETS
             $fets->update([
                 'property_no' => $newFets->property_no,
@@ -860,27 +1032,18 @@ public function update(Request $request)
                 'repair_destination' => $newFets->repair_destination,
                 'file_name' => $newFets->file_name,
                 'file_path' => $newFets->file_path,
-                'updated_at' => now(),
+                'updated_at' => now(), // Ensure timestamp is updated for cache checking
             ]);
 
-            // ✅ IMPORTANT: Delete the temporary FETS record immediately
+            // Delete the temporary FETS record
             $newFets->delete();
-            
-            // Commit the transaction
-            DB::commit();
         } else {
-            throw new \Exception('Failed to generate new PDF - no temporary FETS created');
+            throw new \Exception('Failed to generate new PDF');
         }
 
     } catch (\Exception $e) {
-        // Rollback the transaction on error
-        DB::rollBack();
-        
         // Restore original request
         app()->instance('request', $originalRequest);
-
-        // Log the error for debugging
-        Log::error('FETS Update Error: ' . $e->getMessage());
 
         // Fallback: update data without PDF regeneration
         $fets->update([
@@ -889,7 +1052,7 @@ public function update(Request $request)
             'remarks' => ($movement === 'For Repair') ? 'Repair' : $remarks,
             'transfer_movement' => $movement,
             'repair_destination' => ($movement === 'For Repair') ? $validated['repair_destination'] : null,
-            'updated_at' => now(),
+            'updated_at' => now(), // Ensure timestamp is updated for cache checking
         ]);
     }
 
@@ -1172,97 +1335,148 @@ public function verify($id)
 }
 
 
-public function approve($id)
-{
-    $fets = FetsDocument::findOrFail($id);
+    public function approve($id)
+    {
+        $fets = FetsDocument::findOrFail($id);
 
-    if ($fets->status !== 'verified') {
-        return back()->with('error', 'Only verified FETS can be approved.');
-    }
+        if ($fets->status !== 'verified') {
+            return back()->with('error', 'Only verified FETS can be approved.');
+        }
 
-    $fets->status = 'approved';
-    $fets->approved_by = auth()->id();
-    $fets->save();
+        $fets->status = 'approved';
+        $fets->approved_by = auth()->id();
+        $fets->save();
 
-    $propertyNumbers = array_map('trim', explode(',', $fets->property_no));
+        $propertyNumbers = array_map('trim', explode(',', $fets->property_no));
+        $userFullName = auth()->user()->fullname;
+        $userAccessLevel = auth()->user()->access_level;
 
-    // 🔹 Return-from-Repair Flow
-    if (($fets->form_data['return_type'] ?? null) === 'from_repair') {
-        // ... (This logic is correct from our previous fixes)
+        // 🔹 Return-from-Repair Flow
+        if (($fets->form_data['return_type'] ?? null) === 'from_repair') {
+
+            // Inventory Update Logic: Update the returned units in the inventory table
+            foreach ($propertyNumbers as $propNo) {
+                $cleanedPropNo = preg_replace('/\s+/', '', $propNo);
+                $originalReceiver = ($fets->form_data['original_receivers'] ?? [])[$cleanedPropNo] ?? DB::table('inventory')->whereRaw("REPLACE(TRIM(PROPERTY_NO),' ','') = ?", [$cleanedPropNo])->value('RECEIVER');
+                $repairDestination = ($fets->form_data['repair_destinations'] ?? [])[$cleanedPropNo] ?? 'Unknown';
+
+                DB::table('inventory')
+                    ->whereRaw("REPLACE(TRIM(PROPERTY_NO),' ','') = ?", [$cleanedPropNo])
+                    ->update([
+                        'STATUS' => null, // Clear status as it is returned
+                        'RECEIVER' => $originalReceiver, // Reassign to original receiver
+                        'DPO_REMARKS' => "Returned from Repair: {$repairDestination}",
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            // 💥 FIX: Conditionally close the original 'For Repair' FETS AND remove returned property numbers.
+            // Get all original 'For Repair' FETS documents that contained any of the items just returned
+            $originalFetsToClose = FetsDocument::where('transfer_movement', 'For Repair')->where('status', 'approved')
+                ->where(function ($query) use ($propertyNumbers) {
+                    // Find all *original* FETS documents that contained any of the currently returned property numbers
+                    foreach ($propertyNumbers as $propNo) {
+                        $query->orWhere('property_no', 'like', "%{$propNo}%");
+                    }
+                })->get();
+
+            // Check if the original FETS is fully completed before marking it as such
+            foreach ($originalFetsToClose as $originalFets) {
+                // Get ALL property numbers from the original FETS (e.g., the 15 units)
+                $originalPropNos = array_map('trim', explode(',', $originalFets->property_no));
+
+                // Get ALL property numbers that have been successfully returned from repair
+                $successfulReturnPropNos = FetsDocument::where('transfer_movement', 'Return from Repair')
+                    ->whereIn('status', ['approved', 'completed']) // Look for approved/completed returns
+                    ->where(function ($query) use ($originalPropNos) {
+                        // Look for successful return documents that include any of these original items
+                        foreach ($originalPropNos as $propNo) {
+                            $query->orWhere('property_no', 'like', "%{$propNo}%");
+                        }
+                    })
+                    ->pluck('property_no')
+                    ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
+                    ->unique()
+                    ->toArray();
+
+                // Items still considered 'out for repair' by the system
+                $remainingForRepairPropNos = array_diff($originalPropNos, $successfulReturnPropNos);
+
+                // Check if every item has been returned.
+                $isFullyReturned = empty($remainingForRepairPropNos);
+
+                if ($isFullyReturned) {
+                    // FIX: Close the original FETS completely
+                    $originalFets->status = 'completed';
+                    $originalFets->save();
+                } else {
+                    // CRITICAL FIX: If not fully returned, update the FETS document to ONLY track the remaining items.
+                    // This removes the lock for the items JUST RETURNED in this batch.
+                    $originalFets->property_no = implode(',', $remainingForRepairPropNos);
+                    $originalFets->save();
+                }
+            }
+
+            // 2. Set the current return FETS to completed
+            $fets->status = 'completed';
+            $fets->save();
+
+            // Logging the completion
+            FetsLog::create([
+                'property_no' => $fets->property_no,
+                'action' => 'completed',
+                'actor' => $userFullName,
+                'actor_role' => $userAccessLevel,
+                'remarks' => "Return-from-Repair FETS #{$fets->id} completed/approved by {$userFullName}",
+            ]);
+
+            return back()->with('success', 'Return-from-Repair FETS approved and inventory updated.');
+        }
+
+        // 🔹 Normal FETS Approval Flow
+
+        // Inventory Update Logic
+        $receiverName = $fets->to_receiver;
+
         foreach ($propertyNumbers as $propNo) {
             $cleanedPropNo = preg_replace('/\s+/', '', $propNo);
-            $originalReceiver = ($fets->form_data['original_receivers'] ?? [])[$cleanedPropNo] ?? DB::table('inventory')->whereRaw("REPLACE(TRIM(PROPERTY_NO),' ','') = ?", [$cleanedPropNo])->value('RECEIVER');
-            $repairDestination = ($fets->form_data['repair_destinations'] ?? [])[$cleanedPropNo] ?? 'Unknown';
-
-            DB::table('inventory')
-                ->whereRaw("REPLACE(TRIM(PROPERTY_NO),' ','') = ?", [$cleanedPropNo])
-                ->update([
-                    'STATUS' => null, 'RECEIVER' => $originalReceiver,
-                    'DPO_REMARKS' => "Returned from Repair: {$repairDestination}",
-                    'updated_at' => now(),
-                ]);
+            if ($fets->transfer_movement === 'For Repair') {
+                DB::table('inventory')->whereRaw("REPLACE(TRIM(PROPERTY_NO),' ','') = ?", [$cleanedPropNo])
+                    ->update([
+                        'STATUS' => 'Being Assessed for Repair',
+                        'DPO_REMARKS' => "Assigned for Repair to: {$fets->repair_destination}",
+                        'updated_at' => now(),
+                    ]);
+            } else {
+                DB::table('inventory')->whereRaw("REPLACE(TRIM(PROPERTY_NO),' ','') = ?", [$cleanedPropNo])
+                    ->update(['RECEIVER' => $receiverName, 'updated_at' => now()]);
+            }
         }
 
-        $originalFetsToClose = FetsDocument::where('transfer_movement', 'For Repair')->where('status', 'approved')
-            ->where(function ($query) use ($propertyNumbers) {
-                foreach ($propertyNumbers as $propNo) {
-                    $query->orWhere('property_no', 'like', "%{$propNo}%");
-                }
-            })->get();
-
-        foreach ($originalFetsToClose as $originalFets) {
-            $originalFets->status = 'completed';
-            $originalFets->save();
+        $standardMovements = ['Issue/Transfer', 'For Surrender', 'Return to Lender'];
+        if (in_array($fets->transfer_movement, $standardMovements)) {
+            $fets->status = 'completed';
+            $fets->save();
         }
 
-        $fets->status = 'completed';
-        $fets->save();
-
-        FetsLog::create([/* ... */]);
-        return back()->with('success', 'Return-from-Repair FETS approved and inventory updated.');
+        // Logging the approval
+        FetsLog::create([
+            'property_no' => $fets->property_no,
+            'action' => 'approved',
+            'actor' => $userFullName,
+            'actor_role' => $userAccessLevel,
+            'remarks' => ($fets->transfer_movement === 'For Repair')
+                ? "FETS #{$fets->id} approved for repair assessment to {$fets->repair_destination}"
+                : "FETS #{$fets->id} approved by DPSC, assigned to {$receiverName}",
+        ]);
+        return back()->with('success', 'FETS document approved successfully.');
     }
 
-    // 🔹 Normal FETS Approval Flow
-
-    // ✅ --- THIS IS THE FIX --- ✅
-    // We removed the DPSC lookup. The receiver is now ALWAYS the person selected in the form.
-    $receiverName = $fets->to_receiver;
-
-    foreach ($propertyNumbers as $propNo) {
-        $cleanedPropNo = preg_replace('/\s+/', '', $propNo);
-        if ($fets->transfer_movement === 'For Repair') {
-            DB::table('inventory')->whereRaw("REPLACE(TRIM(PROPERTY_NO),' ','') = ?", [$cleanedPropNo])
-                ->update([
-                    'STATUS' => 'Being Assessed for Repair',
-                    'DPO_REMARKS' => "Assigned for Repair to: {$fets->repair_destination}",
-                    'updated_at' => now(),
-                ]);
-        } else {
-            DB::table('inventory')->whereRaw("REPLACE(TRIM(PROPERTY_NO),' ','') = ?", [$cleanedPropNo])
-                ->update(['RECEIVER' => $receiverName, 'updated_at' => now()]);
-        }
-    }
-
-    $standardMovements = ['Issue/Transfer', 'For Surrender', 'Return to Lender'];
-    if (in_array($fets->transfer_movement, $standardMovements)) {
-        $fets->status = 'completed';
-        $fets->save();
-    }
-
-    FetsLog::create([
-        'property_no' => $fets->property_no,
-        'action' => 'approved',
-        'actor' => auth()->user()->fullname,
-        'actor_role' => auth()->user()->access_level,
-        'remarks' => ($fets->transfer_movement === 'For Repair')
-            ? "FETS #{$fets->id} approved for repair assessment to {$fets->repair_destination}"
-            : "FETS #{$fets->id} approved by DPSC, assigned to {$receiverName}",
-    ]);
-    return back()->with('success', 'FETS document approved successfully.');
-}
 
 
-public function reject(Request $request, $id)
+
+
+    public function reject(Request $request, $id)
 {
     $fets = FetsDocument::findOrFail($id);
 
@@ -1494,7 +1708,7 @@ private function regeneratePdfForPreview($doc)
                 'transfer_movement' => $doc->transfer_movement,
                 'remarks' => $doc->remarks,
                 'repair_destination' => $doc->repair_destination,
-                'to_receiver' => $doc->to_receiver, // ✅ ADDED: Include to_receiver from the document
+                'to_receiver' => $doc->to_receiver,
                 'embed' => '1'
             ]);
 
