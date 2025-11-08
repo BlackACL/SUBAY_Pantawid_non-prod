@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
 
 class Official extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'province',   // nullable for non-provincial roles (Regional DPSC, Head of Property)
         'role',       // Provincial DPSC, Regional DPSC, Head of Property

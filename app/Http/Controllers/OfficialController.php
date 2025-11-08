@@ -30,8 +30,8 @@ class OfficialController extends Controller
         // Get repair destinations for the repair destination tab
         $destinations = \App\Models\RepairDestination::all();
         
-        // Get current manual for manual management tab
-        $currentManual = Manual::latest('uploaded_at')->first();
+        // Get current manual for manual management tab (only active/non-deleted)
+        $currentManual = Manual::whereNull('deleted_at')->latest('uploaded_at')->first();
         
         return view('superadmin.officials.index', compact('officials', 'destinations', 'currentManual'));
     }

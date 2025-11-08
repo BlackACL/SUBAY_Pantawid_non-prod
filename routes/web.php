@@ -396,8 +396,26 @@ Route::middleware(['auth', 'role:superadmin', 'verified', 'twofactor'])->group(f
     // ✅ Manual Management (Superadmin only)
     Route::post('/manual/upload', [ManualController::class, 'upload'])->name('manual.upload');
     Route::delete('/manual/delete', [ManualController::class, 'delete'])->name('manual.delete');
+    Route::get('/manual/trashed', [ManualController::class, 'trashed'])->name('manual.trashed');
+    Route::post('/manual/restore/{id}', [ManualController::class, 'restore'])->name('manual.restore');
+    Route::delete('/manual/force-delete/{id}', [ManualController::class, 'forceDelete'])->name('manual.forceDelete');
 
-    // 📁 User Import Routes
+    // � Test route to view soft-deleted items
+    Route::get('/test/soft-deletes', function() {
+        $destinations = \App\Models\RepairDestination::withTrashed()->get();
+        $output = '<h1>All Repair Destinations (Including Soft Deleted)</h1>';
+        $output .= '<table border="1" cellpadding="10" style="border-collapse: collapse;">';
+        $output .= '<tr><th>ID</th><th>Name</th><th>Deleted At</th><th>Status</th></tr>';
+        foreach ($destinations as $dest) {
+            $status = $dest->deleted_at ? '<span style="color:red;">SOFT DELETED ❌</span>' : '<span style="color:green;">ACTIVE ✅</span>';
+            $deletedAt = $dest->deleted_at ? $dest->deleted_at->format('Y-m-d H:i:s') : 'NULL';
+            $output .= "<tr><td>{$dest->id}</td><td>{$dest->name}</td><td>{$deletedAt}</td><td>{$status}</td></tr>";
+        }
+        $output .= '</table>';
+        return $output;
+    });
+
+    // �📁 User Import Routes
     Route::post('/users/import', [UserController::class, 'importSimple'])->name('users.import');
     Route::post('/users/test-import', function() {
         return response('TEST ROUTE HIT! Time: ' . date('Y-m-d H:i:s'));

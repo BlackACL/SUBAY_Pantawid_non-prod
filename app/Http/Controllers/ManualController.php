@@ -13,13 +13,14 @@ class ManualController extends Controller
      */
     public function view()
     {
-        $manual = Manual::latest('uploaded_at')->first();
+        // Only get active (non-deleted) manuals
+        $manual = Manual::whereNull('deleted_at')->latest('uploaded_at')->first();
         
         if (!$manual || !Storage::disk('public')->exists('manuals/' . $manual->filename)) {
             abort(404, 'Manual not found. Please contact administrator.');
         }
 
-        $path = Storage::disk('public')->path('manuals/' . $manual->filename);
+        $path = storage_path('app/public/manuals/' . $manual->filename);
         return response()->file($path);
     }
 
@@ -38,10 +39,10 @@ class ManualController extends Controller
         // Store the file
         $file->storeAs('manuals', $filename, 'public');
 
-        // Delete old manual file if exists
-        $oldManual = Manual::latest('uploaded_at')->first();
-        if ($oldManual && Storage::disk('public')->exists('manuals/' . $oldManual->filename)) {
-            Storage::disk('public')->delete('manuals/' . $oldManual->filename);
+        // Soft delete the old active manual (keeps file for recovery)
+        $oldManual = Manual::whereNull('deleted_at')->latest('uploaded_at')->first();
+        if ($oldManual) {
+            $oldManual->delete(); // Soft delete, file remains
         }
 
         // Save new manual record
@@ -61,22 +62,67 @@ class ManualController extends Controller
      */
     public function delete()
     {
-        $manual = Manual::latest('uploaded_at')->first();
+        // Only get active (non-deleted) manuals
+        $manual = Manual::whereNull('deleted_at')->latest('uploaded_at')->first();
         
         if (!$manual) {
             return redirect()->route('officials.index', ['tab' => 'manual'])
                 ->with('error', 'No manual found to delete.');
         }
 
-        // Delete file from storage
+        // Soft delete - file remains in storage for recovery
+        // Physical file will stay at: storage/app/public/manuals/{filename}
+        $manual->delete();
+
+        return redirect()->route('officials.index', ['tab' => 'manual'])
+            ->with('success', 'Manual deleted successfully! (File kept for recovery)');
+    }
+
+    /**
+     * Restore a soft-deleted manual
+     */
+    public function restore($id)
+    {
+        $manual = Manual::withTrashed()->findOrFail($id);
+        
+        if (!$manual->trashed()) {
+            return redirect()->route('officials.index', ['tab' => 'manual'])
+                ->with('error', 'Manual is not deleted.');
+        }
+
+        $manual->restore();
+
+        return redirect()->route('officials.index', ['tab' => 'manual'])
+            ->with('success', 'Manual restored successfully!');
+    }
+
+    /**
+     * Permanently delete a manual and its file
+     */
+    public function forceDelete($id)
+    {
+        $manual = Manual::withTrashed()->findOrFail($id);
+
+        // Delete physical file
         if (Storage::disk('public')->exists('manuals/' . $manual->filename)) {
             Storage::disk('public')->delete('manuals/' . $manual->filename);
         }
 
-        // Delete record
-        $manual->delete();
+        // Permanently delete from database
+        $manual->forceDelete();
 
         return redirect()->route('officials.index', ['tab' => 'manual'])
-            ->with('success', 'Manual deleted successfully!');
+            ->with('success', 'Manual permanently deleted!');
+    }
+
+    /**
+     * Show trashed/deleted manuals
+     */
+    public function trashed()
+    {
+        $manuals = Manual::onlyTrashed()->orderBy('deleted_at', 'desc')->get();
+        
+        return view('manuals.trashed', compact('manuals'));
     }
 }
+
