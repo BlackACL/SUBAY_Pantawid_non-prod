@@ -29,6 +29,7 @@ class FetsController extends Controller
         $receivers = DB::table('inventory')
             ->select('RECEIVER')
             ->distinct()
+            ->where('RECEIVER', '!=', $user->fullname)
             ->pluck('RECEIVER');
 
         $allEquipment = DB::table('inventory')
@@ -167,6 +168,28 @@ class FetsController extends Controller
             ? "Head of Property - {$headOfProperty->fullname}"
             : "Head of Property - Not Assigned";
 
+        // ✅ Edit Mode Handling (for Employee users)
+        $editFets = null;
+        $prefilledData = [];
+        $editingFetsPropertyNos = [];
+        if ($request->has('edit')) {
+            $editFets = FetsDocument::where('id', $request->edit)
+                ->where('user_id', $user->id)
+                ->where('status', 'submitted')
+                ->first();
+
+            if ($editFets) {
+                $prefilledData = [
+                    'transfer_movement' => $editFets->transfer_movement,
+                    'remarks' => $editFets->remarks,
+                    'repair_destination' => $editFets->repair_destination,
+                    'selected_items' => array_map('trim', explode(',', $editFets->property_no)),
+                    'to_receiver' => $editFets->to_receiver,
+                ];
+                $editingFetsPropertyNos = array_map('trim', explode(',', $editFets->property_no));
+            }
+        }
+
         // Pass the new $maxItems variable
         return view('FETS', compact(
             'receivers',
@@ -178,7 +201,10 @@ class FetsController extends Controller
             'repairDestinations',
             'provincialDisplay',
             'headOfPropertyDisplay',
-            'maxItems' // <-- PASS THE MAX LIMIT HERE
+            'maxItems',
+            'editFets',
+            'prefilledData',
+            'editingFetsPropertyNos'
         ));
     }
 
@@ -195,8 +221,8 @@ class FetsController extends Controller
     {
         $user = auth()->user();
 
-        // Get receivers for dropdown
-        $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->pluck('RECEIVER');
+        // Get receivers for dropdown - exclude current user
+        $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->where('RECEIVER', '!=', $user->fullname)->pluck('RECEIVER');
 
         // All equipment for "Show All" option
         $allEquipment = DB::table('inventory')->select('PROPERTY_NO', 'GENERAL_DESCRIPTION')->get();
@@ -359,6 +385,11 @@ class FetsController extends Controller
                     'to_receiver' => $editFets->to_receiver,
                 ];
                 $editingFetsPropertyNos = array_map('trim', explode(',', $editFets->property_no));
+                
+                // ✅ Ensure the to_receiver is in the receivers list for editing
+                if ($editFets->to_receiver && !$receivers->contains($editFets->to_receiver)) {
+                    $receivers->push($editFets->to_receiver);
+                }
             }
         }
 
@@ -759,8 +790,8 @@ public function submittedEmbed()
 
         // 6. PDF Generation Setup
         $pdf = new \setasign\Fpdi\Fpdi();
-        $templatePath = storage_path("app/templates/{$templateName}");
-        if (!Storage::disk('local')->exists("templates/{$templateName}")) {
+        $templatePath = storage_path("app/public/templates/{$templateName}");
+        if (!Storage::disk('local')->exists("public/templates/{$templateName}")) {
             return back()->with('error', "Template file not found: {$templateName}");
         }
         $pageCount = $pdf->setSourceFile($templatePath);
@@ -972,6 +1003,7 @@ public function update(Request $request)
         'selected'           => 'required|array|min:1|max:5',
         'transfer_movement'  => 'required|string',
         'remarks'            => 'required|string',
+        'to_receiver'        => 'required_if:transfer_movement,Issue/Transfer|nullable|string',
         'repair_destination' => 'nullable|string|exists:repair_destinations,name',
     ]);
 

@@ -89,7 +89,7 @@
                     <select id="transfer_movement" name="transfer_movement" required
                             class="w-full border rounded p-2 text-sm">
                         <option value="" disabled {{ old('transfer_movement') ? '' : 'selected' }}>-- Select Transfer Movement --</option>
-                        <option value="Return to Lender" {{ old('transfer_movement') == 'Return to Lender' ? 'selected' : '' }}>Return to Lender</option>
+                        <option value="Issue/Transfer" {{ old('transfer_movement') == 'Issue/Transfer' ? 'selected' : '' }}>Issue / Transfer</option>
                         <option value="For Surrender" {{ old('transfer_movement') == 'For Surrender' ? 'selected' : '' }}>For Surrender</option>
                         <option value="For Repair" {{ old('transfer_movement') == 'For Repair' ? 'selected' : '' }}>For Repair</option>
                     </select>
@@ -313,7 +313,15 @@
                 repairWrapper.classList.remove('hidden');
                 remarksWrapper.classList.add('hidden');
                 if(remarksSelect) remarksSelect.required = false;
+            } else if (movement === 'Issue/Transfer') {
+                repairWrapper.classList.add('hidden');
+                remarksWrapper.classList.remove('hidden');
+                if(remarksSelect) {
+                    remarksSelect.required = true;
+                    remarksSelect.value = 'Serviceable'; // Default for Issue/Transfer
+                }
             } else {
+                // For Surrender and others
                 repairWrapper.classList.add('hidden');
                 remarksWrapper.classList.remove('hidden');
                 if(remarksSelect) remarksSelect.required = true;
@@ -436,5 +444,3 @@
             document.body.style.cursor = 'default';
         });
 
-    </script>
-</x-app-layout>
