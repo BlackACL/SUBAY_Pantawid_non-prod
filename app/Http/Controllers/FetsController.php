@@ -8,7 +8,7 @@ use App\Models\FetsDocument;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
-use setasign\Fpdi\Fpdi;
+use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\FetsLog;
 use App\Models\Inventory;
 use Illuminate\Support\Facades\Log;
@@ -754,137 +754,60 @@ public function submittedEmbed()
         }
         $itemCount = count($allItems);
 
-        // ✅ NEW: Get the actual office from the current user.
-        // Use the user's defined office, with a fallback.
+        // Get the actual office from the current user
         $userOffice = $this->getAbbreviatedOffice($user->office ?? 'Pantawid (RPMO)');
-        $date = now()->format('F d, Y');
 
-        // 3. Determine if Long Template is Needed
-        $isLongCheck = fn($items) => $items->contains(fn($item) =>
-            strlen($item->GENERAL_DESCRIPTION ?? '') > 180 || strlen($item->PROPERTY_NO ?? '') > 40 ||
-            strlen($item->SERIAL_NO ?? '') > 60 || strlen($item->PAR_NO ?? '') > 60 ||
-            strlen($item->RECEIVER ?? '') > 35 || strlen($toPerson) > 35 || strlen($validated['remarks']) > 50
-        );
-        $useLong = $isLongCheck($allItems);
+        // 3. Prepare data for PDF template
+        $items = $allItems->map(function($item) use ($finalRemarks) {
+            return [
+                'property_no' => $item->PROPERTY_NO,
+                'serial_no'   => $item->SERIAL_NO ?? '',
+                'description' => $item->GENERAL_DESCRIPTION ?? '',
+                'par_no'      => $item->PAR_NO ?? '',
+                'remarks'     => $finalRemarks,
+            ];
+        })->toArray();
 
-        // 4. Conditional Max Items Check
-        $maxItems = $useLong ? 12 : 15;
-        if ($itemCount > $maxItems) {
-            $errorMessage = $useLong
-                ? "Maximum {$maxItems} items allowed when using the long template format due to content length. You selected {$itemCount}."
-                : "Maximum {$maxItems} items allowed for the standard template format. You selected {$itemCount}.";
-            return back()->withInput()->with('error', $errorMessage);
-        }
+        $recommending = \App\Models\Official::where('role', 'Recommending')->where('active', true)->first();
+        $approving = \App\Models\Official::where('role', 'Approving')->where('active', true)->first();
 
-        // 5. Determine Template Name and Config
-        $templateName = 'FETS-FO-9' . ($useLong ? '-long' : '') . ($itemCount > 1 ? '-for' . $itemCount : '') . '.pdf';
-        $configSet = config('fets_coords');
-        $cfg = $configSet[$templateName] ?? null;
-
-        if (!$cfg) {
-            return back()->with('error', "No template config found for '{$templateName}'. Ensure templates for up to {$maxItems} items exist.");
-        }
-
-        $columnLayout = $configSet['item_columns'][($useLong ? 'long' : 'standard')];
-        $lineHeight = $cfg['line_height'];
-
-        // 6. PDF Generation Setup
-        $pdf = new \setasign\Fpdi\Fpdi();
-        $templatePath = storage_path("app/public/templates/{$templateName}");
-        if (!Storage::disk('local')->exists("public/templates/{$templateName}")) {
-            return back()->with('error', "Template file not found: {$templateName}");
-        }
-        $pageCount = $pdf->setSourceFile($templatePath);
-
-        // 7. Two-Page Logic Setup
-        $isLongTemplate = $useLong;
-        $itemCountFromTemplate = $itemCount;
-
-        $fieldsOnPage2 = []; // Start empty
-        $signatureFields = ['requested_by', 'recommending', 'approving', 'received_by'];
-        $toFields = ['to_office', 'to_person'];
-        $fromFields = ['from_office', 'from_person'];
-
-        if (!$isLongTemplate) {
-            if ($itemCountFromTemplate == 15) {
-                $fieldsOnPage2 = array_merge($signatureFields, $toFields);
-            } elseif ($itemCountFromTemplate == 14) {
-                $fieldsOnPage2 = $signatureFields;
-            }
-        } else {
-            if ($itemCountFromTemplate >= 9 && $itemCountFromTemplate <= 12) {
-                $fieldsOnPage2 = array_merge($signatureFields, $toFields, $fromFields);
-            } elseif ($itemCountFromTemplate == 8) {
-                $fieldsOnPage2 = $signatureFields;
-            }
-        }
-
-        // 8. Data for Static Fields (Updated to use wrapPersonOffice helper)
-        $staticData = [
-            'fets_date'     => now()->format('F d, Y'),
-            'from_office'   => $userOffice,     // ✅ Use dynamic user office
-            'to_office'     => $userOffice,     // ✅ Use dynamic user office
-            'from_person'   => $allItems->first()->RECEIVER ?? '',
-            'to_person'     => $toPerson,
-            'requested_by'  => $allItems->first()->RECEIVER ?? '',
-            'received_by'   => $toPerson,
-            'recommending'  => \App\Models\Official::where('role', 'Recommending')->where('active', true)->first()->fullname ?? 'N/A',
-            'approving'     => \App\Models\Official::where('role', 'Approving')->where('active', true)->first()->fullname ?? 'N/A',
+        $data = [
+            'fets_no'        => 'FETS-' . now()->format('Ymd-His'),
+            'fets_date'      => now()->format('F d, Y'),
+            'items'          => $items,
+            'movement_type'  => $movement,
+            'from_office'    => $userOffice,
+            'to_office'      => $userOffice,
+            'from_person'    => $allItems->first()->RECEIVER ?? '',
+            'to_person'      => $toPerson,
+            'requested_by'   => $allItems->first()->RECEIVER ?? '',
+            'recommended_by' => $recommending ? $recommending->fullname : 'N/A',
+            'approved_by'    => $approving ? $approving->fullname : 'N/A',
+            'inspected_by'   => 'N/A',
+            'received_by'    => $toPerson,
+            'field_office'   => 'XI',
         ];
 
-        // 9. Loop through pages and write PDF content
-        for ($i = 1; $i <= $pageCount; $i++) {
-            $tpl = $pdf->importPage($i);
-            $size = $pdf->getTemplateSize($tpl);
-            $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
-            $pdf->useTemplate($tpl);
-            $pdf->SetFont('Helvetica', '', 8);
-            $pdf->SetTextColor(0, 0, 0);
-
-            // Write Static Fields based on which page we are on
-            foreach ($cfg['fields'] as $fieldName => $fieldConfig) {
-                $isOnPage2 = in_array($fieldName, $fieldsOnPage2);
-                if (isset($staticData[$fieldName])) {
-                    if (($i === 1 && !$isOnPage2) || ($i === 2 && $isOnPage2)) {
-                        $pdf->SetXY($fieldConfig['x'], $fieldConfig['y']);
-                        $wrapLength = $fieldConfig['wrap'] ?? 30;
-                        $fieldWidth = $fieldConfig['width'] ?? 40;
-
-                        // ✅ Use wrapPersonOffice for all signatory/office fields
-                        if (in_array($fieldName, ['from_office', 'to_office', 'from_person', 'to_person', 'requested_by', 'recommending', 'approving', 'received_by'])) {
-                            $wrappedValue = $this->wrapPersonOffice($staticData[$fieldName], $fieldConfig['wrap']);
-                        } else {
-                            // Default to wrapDescription for FETS date and item details in case they are defined here
-                            $wrappedValue = $this->wrapDescription($staticData[$fieldName], $fieldConfig['wrap']);
-                        }
-
-                        $pdf->MultiCell($fieldWidth, $lineHeight, $wrappedValue, 0);
-                    }
-                }
-            }
-
-            // 10. Write Item Rows using the helper (ONLY on the first page)
-            if ($i === 1) {
-                if ($itemCount === 1) {
-                    $itemRowY = $cfg['item_row_y'] ?? 50;
-                    $this->renderPdfItemRow($pdf, $allItems->first(), $itemRowY, $lineHeight, $finalRemarks, $columnLayout);
-                } else {
-                    $baseY = $cfg['base_y'] ?? 50;
-                    $yOffset = $cfg['y_offset'] ?? 6;
-                    foreach ($allItems as $idx => $item) {
-                        $y = $baseY + ($yOffset * $idx);
-                        $this->renderPdfItemRow($pdf, $item, $y, $lineHeight, $finalRemarks, $columnLayout);
-                    }
-                }
-            }
-        }
-
-        // 11. Save PDF and Create Database Record (with Error Handling)
-        $fileName = 'fets_' . now()->format('Ymd_His') . '_' . $itemCount . 'items.pdf';
-        $filePath = "public/fets/{$fileName}";
-        Storage::put($filePath, $pdf->Output('S'));
-
+        // 4. Generate PDF using DomPDF
         try {
+            // Increase memory limit temporarily for PDF generation
+            $oldMemoryLimit = ini_get('memory_limit');
+            ini_set('memory_limit', '1024M');
+            
+            $pdf = Pdf::loadView('pdf.fets', $data);
+            $pdf->setPaper('letter', 'landscape');
+            $pdf->setOption('isRemoteEnabled', true);
+            $pdf->setOption('isPhpEnabled', true);
+            
+            // Save PDF
+            $fileName = 'fets_' . now()->format('Ymd_His') . '_' . $itemCount . 'items.pdf';
+            $filePath = "public/fets/{$fileName}";
+            Storage::put($filePath, $pdf->output());
+            
+            // Restore original memory limit
+            ini_set('memory_limit', $oldMemoryLimit);
+
+            // 5. Create Database Record
             $fets = FetsDocument::create([
                 'property_no'        => implode(',', $validated['selected']),
                 'to_receiver'        => $toPerson,
@@ -897,24 +820,15 @@ public function submittedEmbed()
                 'status'             => 'submitted',
             ]);
 
-// 12. Redirect
-// Check if the request originated from the 'Return from Repair' form
+            // 6. Redirect
             if ($request->get('source') === 'return_form') {
-                // If it's a Return from Repair, redirect back to the previous page (the form)
-                // The calling controller (submitReturnFets) will handle the final redirect back.
-                // We just need to make sure we return a success signal.
-
-                // A simple return statement here works, as the calling method is set up
-                // to handle this return value and issue the final redirect()->back().
                 return [
                     'success'           => 'FETS submitted and PDF generated successfully.',
                     'fets_id'           => $fets->id,
                     'fets_preview_url'  => route('fets.preview', ['id' => $fets->id]),
                     'fets_download_url' => route('fets.download', ['id' => $fets->id]),
                 ];
-
             } else {
-                // For all other FETS movements (the default behavior)
                 $redirectRoute = $request->has('embed') ? 'fets.select.embed' : 'fets.select';
                 return redirect()->route($redirectRoute)->with([
                     'success'           => 'FETS submitted and PDF generated successfully.',
@@ -925,7 +839,13 @@ public function submittedEmbed()
             }
 
         } catch (QueryException $e) {
-            Storage::delete($filePath);
+            // Restore memory limit
+            if (isset($oldMemoryLimit)) {
+                ini_set('memory_limit', $oldMemoryLimit);
+            }
+            if (isset($filePath)) {
+                Storage::delete($filePath);
+            }
             if ($e->getCode() === '22001' || str_contains($e->getMessage(), 'Data too long')) {
                 return back()->withInput()->with('error', 'Too many items selected. The list of property numbers is too long to save (max ~15 items recommended due to database limits).');
             } else {
@@ -933,67 +853,158 @@ public function submittedEmbed()
                 return back()->withInput()->with('error', 'An unexpected database error occurred while saving the FETS document.');
             }
         } catch (\Exception $e) {
-            Storage::delete($filePath);
+            // Restore memory limit
+            if (isset($oldMemoryLimit)) {
+                ini_set('memory_limit', $oldMemoryLimit);
+            }
+            if (isset($filePath)) {
+                Storage::delete($filePath);
+            }
             Log::error("FETS creation failed: " . $e->getMessage());
-            return back()->withInput()->with('error', 'An unexpected error occurred while saving the FETS document.');
+            
+            // Check if it's a memory error
+            if (str_contains($e->getMessage(), 'memory') || str_contains($e->getMessage(), 'exhausted')) {
+                return back()->withInput()->with('error', 'PDF generation failed due to memory constraints. Please try selecting fewer items or contact the administrator.');
+            }
+            
+            return back()->withInput()->with('error', 'An unexpected error occurred while saving the FETS document: ' . $e->getMessage());
         }
     }
-
-// FetsController.php - Inside the class FetsController
-
-    // ✅ ADDED: Map for converting long office names to short versions
-    private $officeAbbreviations = [
-        'PANTAWID PAMILYA PILIPINO PROGRAM DIVISION, PANTAWID (RPMO)' => 'Pantawid (RPMO)', // Example
-        'MONKAYO MUNICIPAL OPERATIONS OFFICE' => 'Monkayo MOO',
-        'COMPOSTELA MUNICIPAL OPERATIONS OFFICE' => 'Compostela MOO',
-        'MACO MUNICIPAL OPERATIONS OFFICE' => 'Maco MOO',
-        'NABUNTURAN (CAPITAL) MUNICIPAL OPERATIONS OFFICE' => 'Nabunturan MOO',
-        // Add all your long office names here as keys
-        // (This array needs to be fully populated with all long names from your DB)
-        // For simplicity, let's use a placeholder for now:
-        'LONG OFFICE NAME HERE' => 'SHORT OFFICE HERE',
-        // Example DSWD office from general knowledge (if applicable)
-        'DSWD FIELD OFFICE XI' => 'DSWD FO XI',
-        // Ensure the full name is captured if you need it shortened
-        // You will need to fully populate this list from your database
-    ];
 
     /**
      * Helper: Converts long office names to abbreviations for PDF display.
      */
     private function getAbbreviatedOffice(string $officeName): string
     {
-        // Use your existing User Controller map as a reference, or the explicit map above.
-        // For now, let's try to grab a safe name if the standard name is long.
-        $standardAbbr = [
+        $officeAbbreviations = [
             'PANTAWID PAMILYA PILIPINO PROGRAM DIVISION, PANTAWID (RPMO)' => 'Pantawid (RPMO)',
+            'MONKAYO MUNICIPAL OPERATIONS OFFICE' => 'Monkayo MOO',
+            'COMPOSTELA MUNICIPAL OPERATIONS OFFICE' => 'Compostela MOO',
+            'MACO MUNICIPAL OPERATIONS OFFICE' => 'Maco MOO',
+            'NABUNTURAN (CAPITAL) MUNICIPAL OPERATIONS OFFICE' => 'Nabunturan MOO',
+            'DSWD FIELD OFFICE XI' => 'DSWD FO XI',
         ];
 
         // Normalize the input office name to match case/spaces in the map keys
         $normalizedOffice = trim(strtoupper($officeName));
 
         // Return the abbreviation if found, otherwise return the original name
-        return $this->officeAbbreviations[$normalizedOffice] ?? $officeName;
+        return $officeAbbreviations[$normalizedOffice] ?? $officeName;
     }
 
-private function renderPdfItemRow(&$pdf, $item, $y, $lineHeight, $remarks, $columnLayout)
-{
-    foreach ($columnLayout as $field => $config) {
-        $value = match($field) {
-            'property_no' => $item->PROPERTY_NO,
-            'serial_no'   => $item->SERIAL_NO ?? '',
-            'description' => $item->GENERAL_DESCRIPTION ?? '',
-            'par_no'      => $item->PAR_NO ?? '',
-            'remarks'     => $remarks,
-            default       => ''
-        };
-        $pdf->SetXY($config['x'], $y);
-        $wrappedValue = $this->wrapDescription($value, $config['wrap']);
-        $pdf->MultiCell($config['width'], $lineHeight, $wrappedValue, 0);
+    /**
+     * Generate a temporary preview PDF without saving to database
+     */
+    public function generatePreview(Request $request)
+    {
+        $validated = $request->validate([
+            'selected'           => 'required|array|min:1|max:15',
+            'transfer_movement'  => 'required|string',
+            'remarks'            => 'required|string',
+            'repair_destination' => 'nullable|string|exists:repair_destinations,name',
+            'to_receiver'        => 'nullable|string',
+        ]);
+
+        try {
+            $user     = auth()->user();
+            $movement = $validated['transfer_movement'];
+            $finalRemarks = ($movement === 'For Repair') ? 'Repair' : $validated['remarks'];
+            $toPerson = $this->determineReceiver($user, $movement, $validated['remarks'], $validated);
+            $allItems = DB::table('inventory')->whereIn('PROPERTY_NO', $validated['selected'])->get();
+
+            if ($allItems->isEmpty()) {
+                return response()->json(['success' => false, 'message' => 'Selected equipment not found.'], 404);
+            }
+
+            $itemCount = count($allItems);
+            $userOffice = $this->getAbbreviatedOffice($user->office ?? 'Pantawid (RPMO)');
+
+            $items = $allItems->map(function($item) use ($finalRemarks) {
+                return [
+                    'property_no' => $item->PROPERTY_NO,
+                    'serial_no'   => $item->SERIAL_NO ?? '',
+                    'description' => $item->GENERAL_DESCRIPTION ?? '',
+                    'par_no'      => $item->PAR_NO ?? '',
+                    'remarks'     => $finalRemarks,
+                ];
+            })->toArray();
+
+            $recommending = \App\Models\Official::where('role', 'Recommending')->where('active', true)->first();
+            $approving = \App\Models\Official::where('role', 'Approving')->where('active', true)->first();
+
+            $data = [
+                'fets_no'        => 'PREVIEW-' . now()->format('Ymd-His'),
+                'fets_date'      => now()->format('F d, Y'),
+                'items'          => $items,
+                'movement_type'  => $movement,
+                'from_office'    => $userOffice,
+                'to_office'      => $userOffice,
+                'from_person'    => $allItems->first()->RECEIVER ?? '',
+                'to_person'      => $toPerson,
+                'requested_by'   => $allItems->first()->RECEIVER ?? '',
+                'recommended_by' => $recommending ? $recommending->fullname : 'N/A',
+                'approved_by'    => $approving ? $approving->fullname : 'N/A',
+                'inspected_by'   => 'N/A',
+                'received_by'    => $toPerson,
+                'field_office'   => 'XI',
+            ];
+
+            // Generate PDF using DomPDF
+            $oldMemoryLimit = ini_get('memory_limit');
+            ini_set('memory_limit', '1024M');
+            
+            $pdf = Pdf::loadView('pdf.fets', $data);
+            $pdf->setPaper('letter', 'landscape');
+            $pdf->setOption('isRemoteEnabled', true);
+            $pdf->setOption('isPhpEnabled', true);
+            
+            // Ensure preview directory exists
+            $previewDir = storage_path('app/public/fets/previews');
+            if (!file_exists($previewDir)) {
+                mkdir($previewDir, 0755, true);
+            }
+            
+            // Save temporary preview file
+            $fileName = 'preview_fets_' . now()->format('Ymd_His') . '_' . $user->id . '.pdf';
+            $filePath = "public/fets/previews/{$fileName}";
+            Storage::put($filePath, $pdf->output());
+            
+            ini_set('memory_limit', $oldMemoryLimit);
+
+            // Return preview URL
+            return response()->json([
+                'success' => true,
+                'preview_url' => route('fets.preview.serve', ['filename' => $fileName])
+            ]);
+
+        } catch (\Exception $e) {
+            if (isset($oldMemoryLimit)) {
+                ini_set('memory_limit', $oldMemoryLimit);
+            }
+            Log::error("Preview generation failed: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate preview: ' . $e->getMessage()
+            ], 500);
+        }
     }
-}
 
+    /**
+     * Serve preview PDF file
+     */
+    public function servePreview($filename)
+    {
+        $filePath = storage_path("app/public/fets/previews/{$filename}");
+        
+        if (!file_exists($filePath)) {
+            abort(404, 'Preview file not found');
+        }
 
+        return response()->file($filePath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+        ]);
+    }
 
 
 public function update(Request $request)
@@ -1194,10 +1205,7 @@ private function getHeadOfProperty(): ?\App\Models\Official
         ->first();
 }
 
-
-
-
-    // Helper functions
+    // Helper functions (no longer needed for DomPDF, but kept for compatibility if used elsewhere)
     private function wrapCommaText($text, $chunkLength = 17)
     {
         if (str_contains($text, ',')) {
@@ -1207,33 +1215,18 @@ private function getHeadOfProperty(): ?\App\Models\Official
                 $parts
             ));
         }
-
         return wordwrap($text, $chunkLength, "\n", true);
     }
 
-    private function wrapDescription($text, $chunkLength = 180)
+    public function reviewSubmitted()
     {
-        return wordwrap($text, $chunkLength, "\n", true);
+        $documents = FetsDocument::where('status', 'submitted')
+            ->with('submitter') // ✅ Load the submitter relationship
+            ->orderByDesc('created_at')
+            ->paginate(10);
+
+        return view('adminDPSC.Provincial.FETSrequest', compact('documents'));
     }
-
-    private function wrapPersonOffice($text, $chunkLength = 29)
-    {
-        return wordwrap($text, $chunkLength, "\n", true);
-    }
-
-
-
-
-
-public function reviewSubmitted()
-{
-    $documents = FetsDocument::where('status', 'submitted')
-        ->with('submitter') // ✅ Load the submitter relationship
-        ->orderByDesc('created_at')
-        ->paginate(10);
-
-    return view('adminDPSC.Provincial.FETSrequest', compact('documents'));
-}
 
     // ✅ View for Provincial to see already VERIFIED FETS
 public function showVerified(Request $request)
