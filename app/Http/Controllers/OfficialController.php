@@ -102,14 +102,14 @@ public function update(Request $request, $activeId = null)
     // 🔹 Fetch history
 public function history($role, $province = null)
 {
-    $query = Official::where('role', $role);
+    $query = Official::where('role', $role)->with('user');
     if ($province && $province !== '-') $query->where('province', $province);
     else $query->whereNull('province');
 
     $history = $query->orderByDesc('created_at')->get([
         'id','fullname','role','province','active','created_at','user_id'
     ])->map(function($official){
-        if($official->user_id) {
+        if($official->user_id && $official->user) {
             $official->fullname = $official->user->fullname;
         }
         return $official;

@@ -52,7 +52,9 @@ class User extends Authenticatable
         'activated',
         'locked_status',
         'archived_at',
-        // 🚨 removed 'deleted_status'
+        // Normalized foreign keys
+        'place_id',
+        'office_id',
     ];
     /**
      * The attributes that should be hidden for serialization.
@@ -206,12 +208,25 @@ class User extends Authenticatable
 
     public function inventoryItems()
     {
-        return $this->hasMany(\App\Models\Inventory::class, 'receiver', 'fullname');
+        return $this->hasMany(\App\Models\Inventory::class, 'RECEIVER', 'fullname');
     }
 
     public function units()
     {
-        return $this->hasMany(\App\Models\Inventory::class, 'receiver', 'fullname');
+        return $this->hasMany(\App\Models\Inventory::class, 'RECEIVER', 'fullname');
+    }
+
+    /**
+     * 🌍 Normalized relationships (NEW)
+     */
+    public function place()
+    {
+        return $this->belongsTo(Place::class);
+    }
+
+    public function office()
+    {
+        return $this->belongsTo(Office::class);
     }
 
     /**

@@ -36,6 +36,8 @@ class Kernel extends HttpKernel
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\SessionTimeout::class,
+            \App\Http\Middleware\SingleDeviceLogin::class,
         ],
 
         'api' => [
@@ -68,5 +70,7 @@ class Kernel extends HttpKernel
         'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
         'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
         'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+        'session.timeout' => \App\Http\Middleware\SessionTimeout::class,
+        'single.device' => \App\Http\Middleware\SingleDeviceLogin::class,
     ];
 }

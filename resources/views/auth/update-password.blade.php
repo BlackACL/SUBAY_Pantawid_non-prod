@@ -44,7 +44,7 @@
 
             <header>
                 <p class="text-base text-gray-700">
-                    {{ __('Your new password must be 8-15 characters, and include uppercase, lowercase, a number, and a symbol.') }}
+                    {{ __('Your new password must be at least 12 characters, and include uppercase, lowercase, a number, and a symbol.') }}
                 </p>
             </header>
 
@@ -63,13 +63,23 @@
                     <x-text-input id="update_password_password" name="password" type="password" class="mt-2 block w-full text-sm p-2 password-field" autocomplete="new-password" />
                     <x-input-error :messages="$errors->updatePassword->get('password')" class="mt-2 text-red-600" />
 
+                    <!-- Password Strength Meter -->
+                    <div class="mt-2">
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div id="strengthBar" class="h-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                            <span id="strengthText" class="text-xs font-medium text-gray-500">Strength</span>
+                        </div>
+                    </div>
+
                     <!-- Password Requirements -->
                     <div class="mt-3 text-sm text-gray-700">
                         <p class="font-semibold mb-2">Password Requirements:</p>
                         <ul class="space-y-2 text-sm">
                             <li id="length-check" class="flex items-center">
                                 <span class="w-5 h-5 mr-2 text-gray-400">○</span>
-                                8-15 characters long
+                                At least 12 characters long
                             </li>
                             <li id="uppercase-check" class="flex items-center">
                                 <span class="w-5 h-5 mr-2 text-gray-400">○</span>
@@ -87,6 +97,10 @@
                                 <span class="w-5 h-5 mr-2 text-gray-400">○</span>
                                 At least one special character (!@#$%^&* etc.)
                             </li>
+                            <li id="common-check" class="flex items-center">
+                                <span class="w-5 h-5 mr-2 text-gray-400">○</span>
+                                Not a common password
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -101,6 +115,16 @@
                 <div class="flex items-center gap-2">
                     <input type="checkbox" id="togglePassword" class="h-5 w-5">
                     <label for="togglePassword" class="text-sm text-gray-700 cursor-pointer">Show Passwords</label>
+                </div>
+
+                <!-- Data Privacy Policy -->
+                <div class="text-sm">
+                    <p class="text-gray-600">
+                        By updating your password, you agree to our 
+                        <a href="{{ asset('storage/DPA-of-2012_1.pdf') }}" target="_blank" class="text-blue-600 hover:text-blue-800 underline font-medium">
+                            Data Privacy Policy
+                        </a>
+                    </p>
                 </div>
 
                 <div class="flex items-center gap-6">
@@ -136,11 +160,74 @@
             const saveBtn = document.getElementById('save-btn');
             const togglePassword = document.getElementById('togglePassword');
             const passwordFields = document.querySelectorAll('.password-field');
+            const strengthBar = document.getElementById('strengthBar');
+            const strengthText = document.getElementById('strengthText');
+            
+            // Common passwords list
+            const commonPasswords = [
+                'password', 'password123', 'password1234', 'password12345',
+                '123456', '12345678', '123456789', 'qwerty', 'qwerty123',
+                'abc123', 'password!', 'admin', 'admin123', 'welcome',
+                'welcome123', 'letmein', 'monkey', '1234567890', 'password1',
+                'iloveyou', 'sunshine', 'princess', 'dragon', 'master',
+                'trustno1', 'football', 'baseball', 'superman', 'batman',
+                'pantawid123', 'pantawid@123', 'dswd123', 'dswd@123'
+            ];
+
+            // Password strength calculator
+            function calculateStrength(password) {
+                let strength = 0;
+                
+                if (password.length >= 12) strength += 20;
+                if (password.length >= 15) strength += 10;
+                if (password.length >= 20) strength += 10;
+                if (/[a-z]/.test(password)) strength += 15;
+                if (/[A-Z]/.test(password)) strength += 15;
+                if (/\d/.test(password)) strength += 15;
+                if (/[^A-Za-z0-9]/.test(password)) strength += 15;
+                
+                // Check for common password
+                if (commonPasswords.includes(password.toLowerCase())) {
+                    strength = 0;
+                }
+                
+                return strength;
+            }
+
+            function updateStrengthMeter(strength) {
+                strengthBar.style.width = strength + '%';
+                
+                if (strength === 0) {
+                    strengthBar.style.backgroundColor = '#ef4444'; // red
+                    strengthText.textContent = 'Very Weak';
+                    strengthText.className = 'text-xs font-medium text-red-600';
+                } else if (strength < 40) {
+                    strengthBar.style.backgroundColor = '#f59e0b'; // orange
+                    strengthText.textContent = 'Weak';
+                    strengthText.className = 'text-xs font-medium text-orange-600';
+                } else if (strength < 60) {
+                    strengthBar.style.backgroundColor = '#eab308'; // yellow
+                    strengthText.textContent = 'Fair';
+                    strengthText.className = 'text-xs font-medium text-yellow-600';
+                } else if (strength < 80) {
+                    strengthBar.style.backgroundColor = '#3b82f6'; // blue
+                    strengthText.textContent = 'Good';
+                    strengthText.className = 'text-xs font-medium text-blue-600';
+                } else {
+                    strengthBar.style.backgroundColor = '#22c55e'; // green
+                    strengthText.textContent = 'Strong';
+                    strengthText.className = 'text-xs font-medium text-green-600';
+                }
+            }
 
             function validatePasswordRequirements() {
                 const password = passwordInput.value;
                 const currentPassword = currentInput.value;
                 let passwordRequirementsMet = true;
+                
+                // Calculate and update strength meter
+                const strength = calculateStrength(password);
+                updateStrengthMeter(strength);
 
                 function check(condition, elementId) {
                     const el = document.getElementById(elementId);
@@ -156,12 +243,15 @@
                         passwordRequirementsMet = false;
                     }
                 }
+                
+                const isNotCommon = !commonPasswords.includes(password.toLowerCase()) && password.length > 0;
 
-                check(password.length >= 8 && password.length <= 15, 'length-check');
+                check(password.length >= 12, 'length-check');
                 check(/[A-Z]/.test(password), 'uppercase-check');
                 check(/[a-z]/.test(password), 'lowercase-check');
                 check(/\d/.test(password), 'number-check');
                 check(/[^A-Za-z0-9]/.test(password), 'special-check');
+                check(isNotCommon, 'common-check');
 
                 // Enable save button if current password is filled and new password meets requirements
                 const shouldEnableButton = currentPassword.trim() !== '' && passwordRequirementsMet && password.trim() !== '';

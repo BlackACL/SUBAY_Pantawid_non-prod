@@ -15,19 +15,50 @@ class RepairDestinationController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate(['name' => 'required|string|max:255|unique:repair_destinations,name']);
-        $destination = RepairDestination::create(['name' => $request->name]);
-        // Redirect to officials page with success message, name italicized
-        $name = $destination->name;
-        return redirect()->route('officials.index', ['tab' => 'repair'])->with('success', "Repair destination <span class='italic'>".e($name)."</span> added successfully!");
+        // Check if a soft-deleted record exists with this name
+        $existingDeleted = RepairDestination::onlyTrashed()->where('name', $request->name)->first();
+        
+        if ($existingDeleted) {
+            // Restore the soft-deleted record instead of creating a new one
+            $existingDeleted->restore();
+            $name = $existingDeleted->name;
+            return redirect()->route('officials.index')->with([
+                'success' => "Repair destination <span class='italic'>".e($name)."</span> restored successfully!",
+                'active_tab' => 'repair'
+            ]);
+        }
+        
+        // Validate only against non-deleted records
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:repair_destinations,name,NULL,id,deleted_at,NULL'
+        ]);
+        
+        try {
+            $destination = RepairDestination::create(['name' => $validated['name']]);
+            $name = $destination->name;
+            return redirect()->route('officials.index')->with([
+                'success' => "Repair destination <span class='italic'>".e($name)."</span> added successfully!",
+                'active_tab' => 'repair'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error("Failed to create repair destination: " . $e->getMessage());
+            return back()->withInput()->withErrors(['name' => 'Failed to add repair destination. Please try again.']);
+        }
     }
 
     public function destroy($id)
     {
-        $destination = RepairDestination::findOrFail($id);
-        $name = $destination->name;
-        $destination->delete();
-        // Redirect to officials page with success message, name italicized
-        return redirect()->route('officials.index', ['tab' => 'repair'])->with('success', "Repair destination <span class='italic'>".e($name)."</span> removed successfully!");
+        try {
+            $destination = RepairDestination::findOrFail($id);
+            $name = $destination->name;
+            $destination->delete();
+            return redirect()->route('officials.index')->with([
+                'success' => "Repair destination <span class='italic'>".e($name)."</span> removed successfully!",
+                'active_tab' => 'repair'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error("Failed to delete repair destination: " . $e->getMessage());
+            return back()->withErrors(['error' => 'Failed to delete repair destination. Please try again.']);
+        }
     }
 }

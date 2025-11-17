@@ -65,6 +65,13 @@ class AuthenticatedSessionController extends Controller
         $user->save();
 
         $request->session()->regenerate();
+        
+        // Store session ID for single device login
+        $user->session_id = session()->getId();
+        $user->save();
+        
+        // Store last activity time for session timeout
+        session(['last_activity_time' => time()]);
 
         $user->regenerateTwoFactorCode();
         $user->notify(new \App\Notifications\TwoFactorCodeNotification());
@@ -88,19 +95,28 @@ class AuthenticatedSessionController extends Controller
     {
         // Log user logout
         if (auth()->check()) {
+            $user = auth()->user();
+            
             activity()
-                ->causedBy(auth()->user())
+                ->causedBy($user)
                 ->withProperties([
                     'ip' => $request->ip(),
                     'device' => $request->userAgent(),
                 ])
                 ->log('Logged out');
+            
+            // Clear session ID for single device login
+            $user->session_id = null;
+            $user->save();
         }
 
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+        
+        // Flush all session data
+        $request->session()->flush();
 
         return redirect('/');
     }

@@ -359,6 +359,7 @@ Route::middleware('auth')->group(function () {
 
 // 🔐 SUPERADMIN Routes
 Route::middleware(['auth', 'role:superadmin', 'verified', 'twofactor'])->group(function () {
+    Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'superadminDashboard'])->name('superadmin.dashboard');
     Route::get('/logs', [App\Http\Controllers\ActivityLogController::class, 'index'])->name('superadmin.logs_nav.logs');
     Route::get('/users', [UserController::class, 'index'])->name('users');
     Route::post('/users/addusers', [UserController::class, 'store'])->name('addusers.store');
@@ -464,7 +465,9 @@ Route::post('/users/test-import-debug', function() {
 Route::middleware(['auth', 'role:superadmin'])->get('/eligible-users', function(Request $request){
     $role = $request->role;
     $province = $request->province;
+    $activeId = $request->active_id;
 
+    // Get all eligible users (including current official)
     $users = User::active()
         ->whereHas('roles', fn($q) => $q->where('name', $role))
         ->when($province && $province !== '-', fn($q) =>
@@ -472,12 +475,25 @@ Route::middleware(['auth', 'role:superadmin'])->get('/eligible-users', function(
         )
         ->get(['id','fullname','province']);
 
-    return response()->json($users);
+    // Get the current official's user_id to mark it in the response
+    $currentUserId = null;
+    if ($activeId) {
+        $currentOfficial = \App\Models\Official::find($activeId);
+        if ($currentOfficial && $currentOfficial->user_id) {
+            $currentUserId = $currentOfficial->user_id;
+        }
+    }
+
+    return response()->json([
+        'users' => $users,
+        'current_user_id' => $currentUserId
+    ]);
 });
 
 
 // 🟣 REGIONAL DPSC Routes
 Route::middleware(['auth', 'role:Regional DPSC', 'verified', 'twofactor'])->group(function () {
+    Route::get('/Regional/Dashboard', [App\Http\Controllers\DashboardController::class, 'regionalDashboard'])->name('Regional.Dashboard');
     Route::get('/Regional/VerifiedFETS', [FetsController::class, 'showVerifiedRegional'])->name('Regional.VerifiedFETS');
     Route::get('/Regional/ApprovedFETS', [FetsController::class, 'showForApproval'])->name('Regional.ApprovedFETS');
     Route::get('/Regional/MyInventory', [InventoryController::class, 'showMyInventory'])->name('Regional.MyInventory');
@@ -486,6 +502,7 @@ Route::middleware(['auth', 'role:Regional DPSC', 'verified', 'twofactor'])->grou
 
 // 🟡 PROVINCIAL DPSC Routes
 Route::middleware(['auth', 'role:Provincial DPSC', 'verified', 'twofactor'])->group(function () {
+    Route::get('/Provincial/Dashboard', [App\Http\Controllers\DashboardController::class, 'provincialDashboard'])->name('Provincial.Dashboard');
     Route::get('/FETSrequest', [FetsController::class, 'reviewSubmitted'])->name('Provincial.FETSrequest');
     Route::patch('/FETSrequest/{id}/verify', [FetsController::class, 'verify'])->name('fets.verify');
     Route::patch('/FETSrequest/{id}/reject', [FetsController::class, 'reject'])->name('fets.reject');
@@ -530,6 +547,11 @@ Route::middleware(['auth', 'verified', 'twofactor'])->group(function () {
 Route::get('/Inventory', [InventoryController::class, 'showEmployeeInventory'])
     ->middleware(['auth', 'role:Employee', 'verified', 'twofactor'])
     ->name('Inventory');
+
+// Unserviceable Units View (Head of Property only)
+Route::get('/unserviceable-units', [InventoryController::class, 'showUnserviceableUnits'])
+    ->middleware(['auth', 'role:Employee', 'verified', 'twofactor'])
+    ->name('unserviceable.units');
 
 // 📄 FETS File Access Routes
 Route::get('/SubmittedFETS', [FetsController::class, 'submittedFets'])

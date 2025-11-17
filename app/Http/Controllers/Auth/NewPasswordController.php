@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use App\Rules\NotCommonPassword;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
@@ -29,17 +30,10 @@ class NewPasswordController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
-            'token' => ['required'],
-            'email' => ['required', 'email'],
-            'password' => [
-                'required',
-                'string',
-                'min:8',
-                'max:15',
-                'confirmed',
-                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,15}$/',
-            ],
+                $request->validate([
+            'token' => 'required',
+            'email' => 'required|email',
+            'password' => ['required', 'min:12', 'confirmed', Rules\Password::defaults(), new NotCommonPassword()],
         ]);
 
         // Here we will attempt to reset the user's password. If it is successful we

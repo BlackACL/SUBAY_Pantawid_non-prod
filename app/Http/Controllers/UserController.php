@@ -384,7 +384,14 @@ class UserController extends Controller
                 return response()->json(['error' => 'No file uploaded'], 400);
             }
 
-            $rows = array_map('str_getcsv', file($file->getRealPath()));
+            // Read CSV in binary mode to preserve exact bytes from the file
+            $handle = fopen($file->getRealPath(), 'rb');
+            $rows = [];
+            while (($row = fgetcsv($handle)) !== false) {
+                $rows[] = $row;
+            }
+            fclose($handle);
+            
             $header = array_map(fn($h) => strtolower(trim($h)), array_shift($rows));
             
             // Debug: Log the CSV headers
@@ -439,7 +446,8 @@ class UserController extends Controller
         $processed = 0;
         
         foreach ($records as $index => $record) {
-            $record = array_map(fn($v) => mb_convert_encoding($v, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252'), $record);
+            // Just trim whitespace, don't modify the actual data
+            $record = array_map('trim', $record);
 
             // Check for existing user first
             $existingUser = User::where('email', $record['email'])->first();

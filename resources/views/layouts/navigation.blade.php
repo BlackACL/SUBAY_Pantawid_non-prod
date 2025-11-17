@@ -3,15 +3,15 @@
     <!-- Logo -->
     <div class="flex items-center justify-center py-8 border-b">
         @if(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('superadmin'))
-            <a href="{{ route('superadmin.logs_nav.logs') }}">
+            <a href="{{ route('superadmin.dashboard') }}">
                 <img src="/images/dswd_logoXI.png" alt="DSWD Logo" class="h-16 w-auto drop-shadow" />
             </a>
         @elseif(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('Regional DPSC'))
-            <a href="{{ route('Regional.VerifiedFETS') }}">
+            <a href="{{ route('Regional.Dashboard') }}">
                 <img src="/images/dswd_logoXI.png" alt="DSWD Logo" class="h-16 w-auto drop-shadow" />
             </a>
         @elseif(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('Provincial DPSC'))
-            <a href="{{ route('Provincial.FETSrequest') }}">
+            <a href="{{ route('Provincial.Dashboard') }}">
                 <img src="/images/dswd_logoXI.png" alt="DSWD Logo" class="h-16 w-auto drop-shadow" />
             </a>
         @else
@@ -23,6 +23,10 @@
     <!-- Navigation Links (vertical, enhanced, consistent) -->
     <nav class="flex-1 flex flex-col gap-1 px-4 py-4">
         @if(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('superadmin'))
+            <x-nav-link :href="route('superadmin.dashboard')" :active="request()->routeIs('superadmin.dashboard')" class="block w-full text-left px-4 py-2 rounded-lg transition flex items-center gap-2 hover:bg-[#74a7b5] {{ request()->routeIs('superadmin.dashboard') ? 'bg-[#6176a3] font-bold' : '' }}">
+                <i class="fas fa-tachometer-alt text-white"></i>
+                <span class="text-lg text-white">Dashboard</span>
+            </x-nav-link>
             <x-nav-link :href="route('superadmin.logs_nav.logs')" :active="request()->routeIs('superadmin.logs_nav.logs')" class="block w-full text-left px-4 py-2 rounded-lg transition flex items-center gap-2 hover:bg-[#74a7b5] {{ request()->routeIs('superadmin.logs_nav.logs') ? 'bg-[#6176a3] font-bold' : '' }}">
                 <i class="fas fa-list-alt text-white"></i>
                 <span class="text-lg text-white">Logs</span>
@@ -44,6 +48,10 @@
                 <span class="text-lg text-white">System Management</span>
             </x-nav-link>
         @elseif(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('Regional DPSC'))
+            <x-nav-link :href="route('Regional.Dashboard')" :active="request()->routeIs('Regional.Dashboard')" class="block w-full text-left px-4 py-2 rounded-lg transition flex items-center gap-2 hover:bg-[#74a7b5] {{ request()->routeIs('Regional.Dashboard') ? 'bg-[#6176a3] font-bold' : '' }}">
+                <i class="fas fa-tachometer-alt text-white"></i>
+                <span class="text-lg text-white">Dashboard</span>
+            </x-nav-link>
             <x-nav-link :href="route('Regional.VerifiedFETS')" :active="request()->routeIs('Regional.VerifiedFETS')" class="block w-full text-left px-4 py-2 rounded-lg transition flex items-center gap-2 hover:bg-[#74a7b5] {{ request()->routeIs('Regional.VerifiedFETS') ? 'bg-[#6176a3] font-bold' : '' }}">
                 <i class="fas fa-check-circle text-white"></i>
                 <span class="text-lg text-white">Verified FETS</span>
@@ -65,6 +73,10 @@
                 <span class="text-lg text-white">Inventory Management</span>
             </x-nav-link>
         @elseif(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('Provincial DPSC'))
+            <x-nav-link :href="route('Provincial.Dashboard')" :active="request()->routeIs('Provincial.Dashboard')" class="block w-full text-left px-4 py-2 rounded-lg transition flex items-center gap-2 hover:bg-[#74a7b5] {{ request()->routeIs('Provincial.Dashboard') ? 'bg-[#6176a3] font-bold' : '' }}">
+                <i class="fas fa-tachometer-alt text-white"></i>
+                <span class="text-lg text-white">Dashboard</span>
+            </x-nav-link>
             <x-nav-link :href="route('Provincial.FETSrequest')" :active="request()->routeIs('Provincial.FETSrequest')" class="block w-full text-left px-4 py-2 rounded-lg transition flex items-center gap-2 hover:bg-[#74a7b5] {{ request()->routeIs('Provincial.FETSrequest') ? 'bg-[#6176a3] font-bold' : '' }}">
                 <i class="fas fa-file-alt text-white"></i>
                 <span class="text-lg text-white">FETS Request</span>
@@ -90,6 +102,22 @@
                 <i class="fas fa-box text-white"></i>
                 <span class="text-lg text-white">My Inventory</span>
             </x-nav-link>
+            
+            @php
+                // Check if user is Head of Property
+                $isHeadOfProperty = \App\Models\Official::where('role', 'Head of Property')
+                    ->where('active', true)
+                    ->where('user_id', auth()->id())
+                    ->exists();
+            @endphp
+            
+            @if($isHeadOfProperty)
+                <x-nav-link :href="route('unserviceable.units')" :active="request()->routeIs('unserviceable.units')" class="block w-full text-left px-4 py-2 rounded-lg transition flex items-center gap-2 hover:bg-[#74a7b5] {{ request()->routeIs('unserviceable.units') ? 'bg-[#6176a3] font-bold' : '' }}">
+                    <i class="fas fa-exclamation-triangle text-white"></i>
+                    <span class="text-lg text-white">Unserviceable Units</span>
+                </x-nav-link>
+            @endif
+            
             <x-nav-link :href="route('fets.select')" :active="request()->routeIs('FETS')" class="block w-full text-left px-4 py-2 rounded-lg transition flex items-center gap-2 hover:bg-[#74a7b5] {{ request()->routeIs('FETS') ? 'bg-[#6176a3] font-bold' : '' }}">
                 <i class="fas fa-file-alt text-white"></i>
                 <span class="text-lg text-white">FETS</span>

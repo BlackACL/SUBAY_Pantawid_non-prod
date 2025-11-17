@@ -9,11 +9,11 @@
     @if(session('success'))
         <div x-data="{ show: true }" x-show="show" class="bg-green-100 text-green-800 px-4 py-2 rounded mb-4 flex items-center justify-between" x-transition>
             <span>{!! session('success') !!}</span>
-            <button @click="show = false" class="ml-4 text-green-900 hover:text-red-600 font-bold text-2xl leading-none" style="margin-left:auto;">&times;</button>
+            <button x-on:click="show = false" class="ml-4 text-green-900 hover:text-red-600 font-bold text-2xl leading-none" style="margin-left:auto;">&times;</button>
         </div>
     @endif
 
-    <div class="p-6">
+    <div class="p-6" x-data="officialsHistory()">
         {{-- Tab Navigation --}}
         <div class="mb-6 border-b border-gray-200">
             <nav class="flex space-x-4">
@@ -39,29 +39,134 @@
         {{-- Officials Management Tab --}}
         <div id="content-officials" class="tab-content">
         <div class="space-y-6">
-            @php
-                $requiredRoles = ['Provincial DPSC', 'Regional DPSC', 'Head of Property', 'Recommending', 'Approving'];
+            {{-- Provincial DPSC Table --}}
+            @php $byProvince = $officials['Provincial DPSC'] ?? collect([null => collect()]); @endphp
+            <div class="bg-white shadow rounded-xl p-4">
+                <h2 class="text-xl font-semibold mb-3">Provincial DPSC</h2>
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="bg-[#2e3192] text-white">
+                            <th class="p-2 text-left">Assigned Province</th>
+                            <th class="p-2 text-left">Active Official</th>
+                            <th class="p-2 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($byProvince as $province => $group)
+                            @php $active = $group->firstWhere('active', true); @endphp
+                            <tr class="border-t">
+                                <td class="p-2">{{ $province ?? '-' }}</td>
+                                <td class="p-2">
+                                    @if($active)
+                                        <span class="font-semibold text-green-700">
+                                            {{ ($active->user_id && $active->user) ? $active->user->fullname : $active->fullname }}
+                                        </span>
+                                    @else
+                                        <span class="text-gray-500 italic">No active official</span>
+                                    @endif
+                                </td>
+                                <td class="p-2 text-center">
+                                    <button class="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition replace-btn"
+                                        data-role="Provincial DPSC"
+                                        data-province="{{ $province ?? '' }}"
+                                        data-active-id="{{ $active ? $active->id : '' }}">
+                                        Replace
+                                    </button>
+                                    <button class="px-3 py-1 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition"
+                                        onclick="openHistoryModal('Provincial DPSC', '{{ $province }}')">
+                                        View History
+                                    </button>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            {{-- Regional DPSC Table --}}
+            @php 
+                $regionalGroup = $officials['Regional DPSC'] ?? collect([null => collect()]);
+                $regionalActive = $regionalGroup->flatten()->firstWhere('active', true);
+                // Try to find user by matching fullname (case-insensitive, handle formatting differences)
+                if ($regionalActive && !$regionalActive->user) {
+                    $nameParts = explode(' ', trim($regionalActive->fullname));
+                    $lastName = $nameParts[0] ?? '';
+                    $regionalActive->load(['user' => function($q) use ($lastName) {
+                        $q->where('fullname', 'LIKE', '%' . $lastName . '%');
+                    }]);
+                    // If still no user, try direct search
+                    if (!$regionalActive->user) {
+                        $regionalActive->user = \App\Models\User::where('fullname', 'LIKE', '%Mozo%')
+                            ->orWhere('fullname', 'LIKE', '%' . str_replace([',', '.'], '', $regionalActive->fullname) . '%')
+                            ->first();
+                    }
+                }
             @endphp
+            <div class="bg-white shadow rounded-xl p-4">
+                <h2 class="text-xl font-semibold mb-3">Regional DPSC</h2>
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="bg-[#2e3192] text-white">
+                            <th class="p-2 text-left">Assigned Region</th>
+                            <th class="p-2 text-left">Active Official</th>
+                            <th class="p-2 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($regionalGroup as $province => $group)
+                            @php $active = $group->firstWhere('active', true); @endphp
+                            <tr class="border-t">
+                                <td class="p-2">
+                                    @if($regionalActive && $regionalActive->user && $regionalActive->user->region)
+                                        {{ $regionalActive->user->region }}
+                                    @else
+                                        Region XI - Davao Region
+                                    @endif
+                                </td>
+                                <td class="p-2">
+                                    @if($active)
+                                        <span class="font-semibold text-green-700">
+                                            {{ ($active->user_id && $active->user) ? $active->user->fullname : $active->fullname }}
+                                        </span>
+                                    @else
+                                        <span class="text-gray-500 italic">No active official</span>
+                                    @endif
+                                </td>
+                                <td class="p-2 text-center">
+                                    <button class="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition replace-btn"
+                                        data-role="Regional DPSC"
+                                        data-province="{{ $province ?? '' }}"
+                                        data-active-id="{{ $active ? $active->id : '' }}">
+                                        Replace
+                                    </button>
+                                    <button class="px-3 py-1 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition"
+                                        onclick="openHistoryModal('Regional DPSC', '{{ $province }}')">
+                                        View History
+                                    </button>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
 
-            @foreach ($requiredRoles as $role)
-                @php $byProvince = $officials[$role] ?? collect([null => collect()]); @endphp
-
-                <div class="bg-white shadow rounded-xl p-4">
-                    <h2 class="text-xl font-semibold mb-3">{{ $role }}</h2>
-
-                    <table class="w-full border-collapse">
+            {{-- Two Column Layout: Head of Property and Recommending --}}
+            <div class="flex gap-6">
+                {{-- Head of Property Table --}}
+                @php $headGroup = $officials['Head of Property'] ?? collect([null => collect()]); @endphp
+                <div class="bg-white shadow rounded-xl p-4 flex-1">
+                    <h2 class="text-xl font-semibold mb-3">Head of Property</h2>
+                    <table class="w-full border-collapse table-fixed">
                         <thead>
                             <tr class="bg-[#2e3192] text-white">
-                                <th class="p-2 text-left">Province</th>
-                                <th class="p-2 text-left">Active Official</th>
-                                <th class="p-2 text-left">Actions</th>
+                                <th class="p-2 text-left" style="width: 60%;">Active Official</th>
+                                <th class="p-2 text-center" style="width: 40%;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($byProvince as $province => $group)
+                            @foreach ($headGroup as $province => $group)
                                 @php $active = $group->firstWhere('active', true); @endphp
                                 <tr class="border-t">
-                                    <td class="p-2">{{ $province ?? '-' }}</td>
                                     <td class="p-2">
                                         @if($active)
                                             <span class="font-semibold text-green-700">
@@ -71,15 +176,15 @@
                                             <span class="text-gray-500 italic">No active official</span>
                                         @endif
                                     </td>
-                                    <td class="p-2 space-x-2">
+                                    <td class="p-2 text-center">
                                         <button class="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition replace-btn"
-                                            data-role="{{ $role }}"
+                                            data-role="Head of Property"
                                             data-province="{{ $province ?? '' }}"
                                             data-active-id="{{ $active ? $active->id : '' }}">
                                             Replace
                                         </button>
                                         <button class="px-3 py-1 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition"
-                                            @click="loadHistory('{{ $role }}', '{{ $province }}')">
+                                            onclick="openHistoryModal('Head of Property', '{{ $province }}')">
                                             View History
                                         </button>
                                     </td>
@@ -88,7 +193,91 @@
                         </tbody>
                     </table>
                 </div>
-            @endforeach
+
+                {{-- Recommending Table --}}
+                @php $recGroup = $officials['Recommending'] ?? collect([null => collect()]); @endphp
+                <div class="bg-white shadow rounded-xl p-4 flex-1">
+                    <h2 class="text-xl font-semibold mb-3">Recommending</h2>
+                    <table class="w-full border-collapse table-fixed">
+                        <thead>
+                            <tr class="bg-[#2e3192] text-white">
+                                <th class="p-2 text-left" style="width: 60%;">Active Official</th>
+                                <th class="p-2 text-center" style="width: 40%;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($recGroup as $province => $group)
+                                @php $active = $group->firstWhere('active', true); @endphp
+                                <tr class="border-t">
+                                    <td class="p-2">
+                                        @if($active)
+                                            <span class="font-semibold text-green-700">
+                                                {{ ($active->user_id && $active->user) ? $active->user->fullname : $active->fullname }}
+                                            </span>
+                                        @else
+                                            <span class="text-gray-500 italic">No active official</span>
+                                        @endif
+                                    </td>
+                                    <td class="p-2 text-center">
+                                        <button class="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition replace-btn"
+                                            data-role="Recommending"
+                                            data-province="{{ $province ?? '' }}"
+                                            data-active-id="{{ $active ? $active->id : '' }}">
+                                            Replace
+                                        </button>
+                                        <button class="px-3 py-1 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition"
+                                            onclick="openHistoryModal('Recommending', '{{ $province }}')">
+                                            View History
+                                        </button>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- Approving Table (Half Width, aligned with Head of Property) --}}
+            @php $appGroup = $officials['Approving'] ?? collect([null => collect()]); @endphp
+            <div class="bg-white shadow rounded-xl p-4" style="width: calc(50% - 0.75rem);">
+                <h2 class="text-xl font-semibold mb-3">Approving</h2>
+                <table class="w-full border-collapse table-fixed">
+                    <thead>
+                        <tr class="bg-[#2e3192] text-white">
+                            <th class="p-2 text-left" style="width: 60%;">Active Official</th>
+                            <th class="p-2 text-center" style="width: 40%;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($appGroup as $province => $group)
+                            @php $active = $group->firstWhere('active', true); @endphp
+                            <tr class="border-t">
+                                <td class="p-2">
+                                    @if($active)
+                                        <span class="font-semibold text-green-700">
+                                            {{ ($active->user_id && $active->user) ? $active->user->fullname : $active->fullname }}
+                                        </span>
+                                    @else
+                                        <span class="text-gray-500 italic">No active official</span>
+                                    @endif
+                                </td>
+                                <td class="p-2 text-center">
+                                    <button class="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition replace-btn"
+                                        data-role="Approving"
+                                        data-province="{{ $province ?? '' }}"
+                                        data-active-id="{{ $active ? $active->id : '' }}">
+                                        Replace
+                                    </button>
+                                    <button class="px-3 py-1 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition"
+                                        onclick="openHistoryModal('Approving', '{{ $province }}')">
+                                        View History
+                                    </button>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
         </div>
 
@@ -139,12 +328,17 @@
     // On page load, check URL for tab parameter and show that tab
     document.addEventListener('DOMContentLoaded', function() {
         const urlParams = new URLSearchParams(window.location.search);
+        // Check for session active_tab first, then URL param, then default
+        @if(session('active_tab'))
+        const activeTab = '{{ session("active_tab") }}';
+        @else
         const activeTab = urlParams.get('tab') || 'officials'; // Default to officials tab
+        @endif
         showTab(activeTab);
     });
     </script>
 
-    <div id="replaceModal" class="fixed inset-0 hidden items-center justify-center bg-black/50 z-50" x-data="officialsHistory()">
+    <div id="replaceModal" class="fixed inset-0 hidden items-center justify-center bg-black/50 z-50">
             <div class="bg-white p-6 rounded-xl w-1/3">
                 <h2 class="text-lg font-bold mb-4">Replace Official</h2>
                 <form id="replaceForm" method="POST">
@@ -163,10 +357,10 @@
             </div>
         </div>
 
-        <div x-show="showHistory" x-cloak x-transition.opacity class="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-            <div class="bg-white p-6 rounded-xl w-1/2">
+        <div id="historyModal" class="fixed inset-0 hidden items-center justify-center bg-black/50" style="z-index: 9999;">
+            <div class="bg-white p-6 rounded-xl w-1/2 shadow-2xl max-h-[80vh] overflow-y-auto">
                 <h2 class="text-xl font-bold mb-4">
-                    History for <span x-text="selectedProvince"></span> - <span x-text="selectedRole"></span>
+                    History for <span id="historyProvince"></span> - <span id="historyRole"></span>
                 </h2>
 
                 <table class="w-full text-left border">
@@ -178,32 +372,13 @@
                             <th class="p-2">Action</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <template x-for="official in historyList" :key="official.id">
-                            <tr class="border-t">
-                                <td class="p-2" x-text="official.fullname"></td>
-                                <td class="p-2">
-                                    <span x-text="official.active ? 'Active' : 'Inactive'"
-                                          :class="official.active ? 'text-green-600 font-semibold' : 'text-gray-500'"></span>
-                                </td>
-                                <td class="p-2" x-text="new Date(official.created_at).toLocaleString()"></td>
-                                <td class="p-2">
-                                    <template x-if="!official.active">
-                                        <form :action="`/management/reactivate/${official.id}`" method="POST">
-                                            @csrf
-                                            <button type="submit" class="px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-sm">
-                                                Reactivate
-                                            </button>
-                                        </form>
-                                    </template>
-                                </td>
-                            </tr>
-                        </template>
+                    <tbody id="historyTableBody">
+                        <!-- History rows will be inserted here -->
                     </tbody>
                 </table>
 
                 <div class="flex justify-end mt-4">
-                    <button @click="showHistory=false" class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">Close</button>
+                    <button onclick="closeHistoryModal()" class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">Close</button>
                 </div>
             </div>
         </div>
@@ -211,10 +386,11 @@
 
     <script>
         function openReplaceModal(role, province, activeId) {
+            console.log('Opening Replace Modal:', { role, province, activeId }); // Debug log
             document.getElementById('replaceModal').classList.remove('hidden');
             document.getElementById('replaceRole').value = role;
             document.getElementById('replaceProvince').value = province;
-            document.getElementById('replaceForm').action = `/management/update/${activeId}`;
+            document.getElementById('replaceForm').action = `/officials/update/${activeId}`;
 
             let container = document.getElementById('replaceInputContainer');
             container.innerHTML = '';
@@ -239,9 +415,16 @@
 
             } else {
                 // This block is for USER-BASED roles (DPSCs). It creates a <select> dropdown.
-                fetch(`/eligible-users?role=${encodeURIComponent(role)}&province=${encodeURIComponent(province)}`)
+                const timestamp = new Date().getTime(); // Cache busting
+                const url = `/eligible-users?role=${encodeURIComponent(role)}&province=${encodeURIComponent(province)}&active_id=${activeId || ''}&_t=${timestamp}`;
+                console.log('Fetching eligible users from:', url); // Debug log
+                fetch(url)
                     .then(res => res.json())
-                    .then(users => {
+                    .then(data => {
+                        console.log('Eligible users data received:', data); // Debug log
+                        const users = data.users || data; // Handle both old and new format
+                        const currentUserId = data.current_user_id;
+                        
                         if(users.length === 0){
                             let msg = document.createElement('p');
                             msg.textContent = 'No eligible users found for this role/province.';
@@ -263,6 +446,10 @@
                         users.forEach(user => {
                             let opt = document.createElement('option');
                             opt.value = user.id;
+                            // Pre-select the current official
+                            if (currentUserId && user.id == currentUserId) {
+                                opt.selected = true;
+                            }
                             opt.textContent = `${user.fullname} (${user.province || 'No Province'})`;
                             select.appendChild(opt);
                         });
@@ -283,6 +470,71 @@
             document.getElementById('replaceModal').classList.add('hidden');
         }
 
+        async function openHistoryModal(role, province) {
+            const modal = document.getElementById('historyModal');
+            const roleSpan = document.getElementById('historyRole');
+            const provinceSpan = document.getElementById('historyProvince');
+            const tbody = document.getElementById('historyTableBody');
+            
+            // Set title
+            roleSpan.textContent = role;
+            provinceSpan.textContent = province || 'National';
+            
+            // Show modal
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            // Fetch history
+            const url = `/officials/history/${encodeURIComponent(role)}/${encodeURIComponent(province || '-')}`;
+            try {
+                const res = await fetch(url);
+                const history = await res.json();
+                
+                // Clear existing rows
+                tbody.innerHTML = '';
+                
+                // Add new rows
+                history.forEach(official => {
+                    const row = document.createElement('tr');
+                    row.classList.add('border-t');
+                    
+                    const statusClass = official.active ? 'text-green-600 font-semibold' : 'text-gray-500';
+                    const statusText = official.active ? 'Active' : 'Inactive';
+                    const date = new Date(official.created_at).toLocaleString();
+                    
+                    let actionHtml = '';
+                    if (!official.active) {
+                        actionHtml = `
+                            <form action="/officials/reactivate/${official.id}" method="POST">
+                                @csrf
+                                <button type="submit" class="px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-sm">
+                                    Reactivate
+                                </button>
+                            </form>
+                        `;
+                    }
+                    
+                    row.innerHTML = `
+                        <td class="p-2">${official.fullname}</td>
+                        <td class="p-2"><span class="${statusClass}">${statusText}</span></td>
+                        <td class="p-2">${date}</td>
+                        <td class="p-2">${actionHtml}</td>
+                    `;
+                    
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error loading history:', error);
+                tbody.innerHTML = '<tr><td colspan="4" class="p-2 text-red-600">Error loading history</td></tr>';
+            }
+        }
+        
+        function closeHistoryModal() {
+            const modal = document.getElementById('historyModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
         function officialsHistory() {
             return {
                 showHistory: false,
@@ -290,13 +542,23 @@
                 selectedProvince: '',
                 historyList: [],
                 async loadHistory(role, province) {
+                    console.log('loadHistory called', role, province);
                     this.selectedRole = role;
                     this.selectedProvince = province || 'National'; // Use 'National' if province is empty
                     this.showHistory = true;
+                    console.log('showHistory set to:', this.showHistory);
+                    console.log('Alpine component data:', this.$data);
 
-                    let url = `/management/history/${encodeURIComponent(role)}/${encodeURIComponent(province || '-')}`;
+                    let url = `/officials/history/${encodeURIComponent(role)}/${encodeURIComponent(province || '-')}`;
+                    console.log('Fetching from:', url);
                     let res = await fetch(url);
                     this.historyList = await res.json();
+                    console.log('History loaded:', this.historyList);
+                    
+                    // Force check if modal is visible
+                    setTimeout(() => {
+                        console.log('After timeout - showHistory:', this.showHistory);
+                    }, 100);
                 }
             }
         }

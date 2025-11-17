@@ -7,6 +7,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
+use App\Rules\NotCommonPassword;
 
 class PasswordController extends Controller
 {
@@ -20,16 +21,9 @@ class PasswordController extends Controller
             return back()->with('error', 'Password doesn\'t match!');
         }
 
-        $validated = $request->validateWithBag('updatePassword', [
+                $request->validateWithBag('updatePassword', [
             'current_password' => ['required', 'current_password'],
-            'password' => [
-                'required',
-                'string',
-                'min:8',
-                'max:15',
-                'confirmed',
-                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,15}$/',
-            ],
+            'password' => ['required', 'min:12', Password::defaults(), 'confirmed', new NotCommonPassword()],
         ]);
 
         $request->user()->update([

@@ -5,7 +5,7 @@
         </h2>
 
         <p class="mt-1 text-sm text-gray-600">
-            {{ __('Your new password must be 8-15 characters, and include uppercase, lowercase, a number, and a symbol.') }}
+            {{ __('Your new password must be at least 15 characters, and include uppercase, lowercase, a number, and a symbol.') }}
         </p>
     </header>
 
@@ -30,7 +30,7 @@
                 <ul class="space-y-1 text-xs">
                     <li id="length-check" class="flex items-center">
                         <span class="w-4 h-4 mr-2 text-gray-400">○</span>
-                        8-15 characters long
+                        At least 15 characters long
                     </li>
                     <li id="uppercase-check" class="flex items-center">
                         <span class="w-4 h-4 mr-2 text-gray-400">○</span>
@@ -80,10 +80,10 @@
             passwordInput.addEventListener('input', function() {
                 const password = this.value;
                 
-                // Check length (8-15 characters)
+                // Check length (minimum 15 characters)
                 const lengthCheck = document.getElementById('length-check');
                 const lengthSpan = lengthCheck.querySelector('span');
-                if (password.length >= 8 && password.length <= 15) {
+                if (password.length >= 15) {
                     lengthSpan.textContent = '✓';
                     lengthSpan.className = 'w-4 h-4 mr-2 text-green-500';
                     lengthCheck.className = 'flex items-center text-green-600';

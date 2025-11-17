@@ -61,7 +61,7 @@
         </div>
 
         <!-- Help Text -->
-        <div class="text-center mt-4">
+        <div class="text-center mt-2">
             <p class="text-sm text-gray-600">
                 Need help? Email the Superadmin: 
                 <a href="https://mail.google.com/mail/?view=cm&fs=1&to=main.central321@gmail.com" 

@@ -110,6 +110,11 @@ class InventoryController extends Controller
             ->orWhere('RECEIVER', 'like', '%' . $fullname . '%')
             ->orWhere('RECEIVER', 'like', '%' . strtoupper($fullname) . '%')
             ->orWhere('RECEIVER', 'like', '%' . strtolower($fullname) . '%');
+    })
+    ->where(function($q) {
+        // Exclude unserviceable items from regular inventory view
+        $q->whereNull('STATUS')
+          ->orWhere('STATUS', '!=', 'Unserviceable');
     });
 
     // apply search to Description, Serial No, or Property No
@@ -245,9 +250,26 @@ public function upload(Request $request)
                 default => throw new \Exception("Unsupported file type: {$extension}"),
             };
 
+            // Fix mojibake encoding issues
+            $fixEncoding = function($text) {
+                if (!is_string($text)) return $text;
+                // Handle various encoding patterns for Ñ
+                $text = str_replace("Ã'", "Ñ", $text);
+                $text = str_replace("'", "Ñ", $text);  // Single quote followed by A often means Ñ
+                $text = str_replace("OPE'A", "OPEÑA", $text);  // Specific pattern fix
+                $text = str_replace("Ã±", "ñ", $text);
+                $text = str_replace("Ã¡", "á", $text);
+                $text = str_replace("Ã©", "é", $text);
+                $text = str_replace("Ã­", "í", $text);
+                $text = str_replace("Ã³", "ó", $text);
+                $text = str_replace("Ãº", "ú", $text);
+                return $text;
+            };
+            
             // Helper function for robust name normalization
-            $normalizeName = function($name) {
+            $normalizeName = function($name) use ($fixEncoding) {
                 if (is_null($name)) return null;
+                $name = $fixEncoding($name); // Fix encoding BEFORE normalizing
                 $no_punctuation = preg_replace('/[\s,]+/u', '', $name);
                 return mb_strtolower($no_punctuation, 'UTF-8');
             };
@@ -280,6 +302,9 @@ public function upload(Request $request)
                     'general_description' => $row['GENERAL_DESCRIPTION'] ?? 'N/A',
                     'serial_no' => $row['SERIAL_NO'] ?? 'N/A',
                     'property_no' => $row['PROPERTY_NO'] ?? 'N/A',
+                    'par_no' => $row['PAR_NO'] ?? 'N/A',
+                    'par_date' => $row['PAR_DATE'] ?? 'N/A',
+                    'qty' => $row['QTY'] ?? 'N/A',
                     'receiver' => $row['RECEIVER'] ?? 'N/A',
                 ];
 
@@ -295,7 +320,15 @@ public function upload(Request $request)
 
                 // Check if RECEIVER exists using normalized names
                 $receiverNameFromFile = trim($row['RECEIVER']);
+                $receiverFixed = $fixEncoding($receiverNameFromFile); // Apply encoding fix
                 $normalizedReceiver = $normalizeName($receiverNameFromFile);
+                
+                \Log::info("Receiver check", [
+                    'original' => $receiverNameFromFile,
+                    'fixed' => $receiverFixed,
+                    'normalized' => $normalizedReceiver,
+                    'exists' => isset($existingUserMap[$normalizedReceiver])
+                ]);
 
                 if (!isset($existingUserMap[$normalizedReceiver])) {
                     $failedRows++;
@@ -490,5 +523,82 @@ public function export(Request $request)
         DB::table('inventory')->truncate();
 
         return back()->with('success', 'Inventory database cleared successfully.');
+    }
+
+    /* ===========================
+       UNSERVICEABLE UNITS
+       =========================== */
+
+    public function showUnserviceableUnits(Request $request)
+    {
+        $user = auth()->user();
+
+        // Check if user is Head of Property
+        $isHeadOfProperty = \App\Models\Official::where('role', 'Head of Property')
+            ->where('active', true)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        if (!$isHeadOfProperty) {
+            abort(403, 'Unauthorized. Only Head of Property can access this page.');
+        }
+
+        // Query all unserviceable items with submitter info
+        $query = DB::table('inventory as inv')
+            ->select(
+                'inv.PROPERTY_NO',
+                'inv.FUND_CODE',
+                'inv.STATUS',
+                'inv.ARTICLE_DESCRIPTION',
+                'inv.GENERAL_DESCRIPTION',
+                'inv.SERIAL_NO',
+                'inv.PAR_NO',
+                'inv.PAR_DATE',
+                'inv.RECEIVER',
+                'inv.DPO_REMARKS',
+                DB::raw('MAX(users.fullname) as submitted_by')
+            )
+            ->leftJoin('fets_items', function($join) {
+                $join->on('inv.PROPERTY_NO', '=', 'fets_items.property_no');
+            })
+            ->leftJoin('fets_documents', function($join) {
+                $join->on('fets_items.fets_document_id', '=', 'fets_documents.id')
+                     ->where('fets_documents.transfer_movement', '=', 'Return to Lender')
+                     ->where('fets_documents.remarks', '=', 'Unserviceable')
+                     ->where('fets_documents.status', '=', 'completed');
+            })
+            ->leftJoin('users', 'fets_documents.user_id', '=', 'users.id')
+            ->where('inv.STATUS', 'Unserviceable')
+            ->whereNotNull('inv.PROPERTY_NO')
+            ->where('inv.PROPERTY_NO', '!=', '')
+            ->groupBy(
+                'inv.PROPERTY_NO',
+                'inv.FUND_CODE',
+                'inv.STATUS',
+                'inv.ARTICLE_DESCRIPTION',
+                'inv.GENERAL_DESCRIPTION',
+                'inv.SERIAL_NO',
+                'inv.PAR_NO',
+                'inv.PAR_DATE',
+                'inv.RECEIVER',
+                'inv.DPO_REMARKS'
+            ); // Group to avoid duplicates
+
+        // Apply search filter
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('inv.GENERAL_DESCRIPTION', 'like', '%' . $search . '%')
+                  ->orWhere('inv.SERIAL_NO', 'like', '%' . $search . '%')
+                  ->orWhere('inv.PROPERTY_NO', 'like', '%' . $search . '%')
+                  ->orWhere('users.fullname', 'like', '%' . $search . '%');
+            });
+        }
+
+        $inventory = $query->orderBy('inv.PROPERTY_NO')
+            ->paginate(15)
+            ->appends($request->all());
+
+        return view('unserviceable-units', compact('inventory'));
     }
 }

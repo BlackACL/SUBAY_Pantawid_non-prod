@@ -30,6 +30,7 @@ class FetsController extends Controller
             ->select('RECEIVER')
             ->distinct()
             ->where('RECEIVER', '!=', $user->fullname)
+            ->orderBy('RECEIVER', 'asc')
             ->pluck('RECEIVER');
 
         $allEquipment = DB::table('inventory')
@@ -45,18 +46,22 @@ class FetsController extends Controller
             ->toArray();
 
         // 🔹 General lock list for all items in a pending FETS (excluding returns)
-        $inProcessPropertyNos = FetsDocument::whereIn('status', ['submitted', 'verified', 'approved'])
-            ->where('transfer_movement', '!=', 'Return from Repair')
-            ->pluck('property_no')
-            ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
+        $inProcessPropertyNos = DB::table('fets_items')
+            ->join('fets_documents', 'fets_items.fets_document_id', '=', 'fets_documents.id')
+            ->whereIn('fets_documents.status', ['submitted', 'verified', 'approved'])
+            ->where('fets_documents.transfer_movement', '!=', 'Return from Repair')
+            ->pluck('fets_items.property_no')
+            ->map(fn($v) => trim($v))
             ->unique()
             ->toArray();
 
         // 🔹 Specific lock list for items in a "For Repair" FETS
-        $repairInProcessPropertyNos = FetsDocument::whereIn('status', ['submitted', 'verified', 'approved'])
-            ->where('transfer_movement', 'For Repair')
-            ->pluck('property_no')
-            ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
+        $repairInProcessPropertyNos = DB::table('fets_items')
+            ->join('fets_documents', 'fets_items.fets_document_id', '=', 'fets_documents.id')
+            ->whereIn('fets_documents.status', ['submitted', 'verified', 'approved'])
+            ->where('fets_documents.transfer_movement', 'For Repair')
+            ->pluck('fets_items.property_no')
+            ->map(fn($v) => trim($v))
             ->unique()
             ->toArray();
 
@@ -81,6 +86,14 @@ class FetsController extends Controller
 
         $inventoryQuery = DB::table('inventory') // Renamed to avoid conflict
         ->where('RECEIVER', $user->fullname);
+
+        // Exclude unserviceable items and items being repaired from FETS creation
+        // Even Head of Property and DPSCs cannot FETS unserviceable items
+        $inventoryQuery->where(function($q) {
+            // Only show items that are available for transfer
+            $q->whereNull('STATUS')
+              ->orWhereNotIn('STATUS', ['Unserviceable', 'Being Assessed for Repair']);
+        });
 
         // 🔎 Search by description, property no, or serial no
         if ($request->filled('search')) {
@@ -179,14 +192,20 @@ class FetsController extends Controller
                 ->first();
 
             if ($editFets) {
+                // Get property numbers from the junction table
+                $selectedPropertyNos = DB::table('fets_items')
+                    ->where('fets_document_id', $editFets->id)
+                    ->pluck('property_no')
+                    ->toArray();
+                
                 $prefilledData = [
                     'transfer_movement' => $editFets->transfer_movement,
                     'remarks' => $editFets->remarks,
                     'repair_destination' => $editFets->repair_destination,
-                    'selected_items' => array_map('trim', explode(',', $editFets->property_no)),
+                    'selected_items' => $selectedPropertyNos,
                     'to_receiver' => $editFets->to_receiver,
                 ];
-                $editingFetsPropertyNos = array_map('trim', explode(',', $editFets->property_no));
+                $editingFetsPropertyNos = $selectedPropertyNos;
             }
         }
 
@@ -222,7 +241,7 @@ class FetsController extends Controller
         $user = auth()->user();
 
         // Get receivers for dropdown - exclude current user
-        $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->where('RECEIVER', '!=', $user->fullname)->pluck('RECEIVER');
+        $receivers = DB::table('inventory')->select('RECEIVER')->distinct()->where('RECEIVER', '!=', $user->fullname)->orderBy('RECEIVER', 'asc')->pluck('RECEIVER');
 
         // All equipment for "Show All" option
         $allEquipment = DB::table('inventory')->select('PROPERTY_NO', 'GENERAL_DESCRIPTION')->get();
@@ -236,18 +255,22 @@ class FetsController extends Controller
             ->toArray();
 
         // 🔹 General lock list for all items in a pending FETS
-        $inProcessPropertyNos = FetsDocument::whereIn('status', ['submitted', 'verified', 'approved'])
-            ->where('transfer_movement', '!=', 'Return from Repair') // Ignore completed returns
-            ->pluck('property_no')
-            ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
+        $inProcessPropertyNos = DB::table('fets_items')
+            ->join('fets_documents', 'fets_items.fets_document_id', '=', 'fets_documents.id')
+            ->whereIn('fets_documents.status', ['submitted', 'verified', 'approved'])
+            ->where('fets_documents.transfer_movement', '!=', 'Return from Repair') // Ignore completed returns
+            ->pluck('fets_items.property_no')
+            ->map(fn($v) => trim($v))
             ->unique()
             ->toArray();
 
         // 🔹 Specific lock list for items in a "For Repair" FETS
-        $repairInProcessPropertyNos = FetsDocument::whereIn('status', ['submitted', 'verified', 'approved'])
-            ->where('transfer_movement', 'For Repair')
-            ->pluck('property_no')
-            ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
+        $repairInProcessPropertyNos = DB::table('fets_items')
+            ->join('fets_documents', 'fets_items.fets_document_id', '=', 'fets_documents.id')
+            ->whereIn('fets_documents.status', ['submitted', 'verified', 'approved'])
+            ->where('fets_documents.transfer_movement', 'For Repair')
+            ->pluck('fets_items.property_no')
+            ->map(fn($v) => trim($v))
             ->unique()
             ->toArray();
 
@@ -277,6 +300,14 @@ class FetsController extends Controller
         // User inventory + search (only show items assigned to current user)
         $inventoryQuery = DB::table('inventory')
             ->where('RECEIVER', $user->fullname);
+
+        // Exclude unserviceable items and items being repaired from FETS creation
+        // Even Head of Property and DPSCs cannot FETS unserviceable items
+        $inventoryQuery->where(function($q) {
+            // Only show items that are available for transfer
+            $q->whereNull('STATUS')
+              ->orWhereNotIn('STATUS', ['Unserviceable', 'Being Assessed for Repair']);
+        });
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -376,15 +407,21 @@ class FetsController extends Controller
                 ->first();
 
             if ($editFets) {
+                // Get property numbers from the junction table
+                $selectedPropertyNos = DB::table('fets_items')
+                    ->where('fets_document_id', $editFets->id)
+                    ->pluck('property_no')
+                    ->toArray();
+                
                 $prefilledData = [
                     'transfer_movement' => $editFets->transfer_movement,
                     'remarks' => $editFets->remarks,
                     'repair_destination' => $editFets->repair_destination,
-                    'selected_items' => array_map('trim', explode(',', $editFets->property_no)),
+                    'selected_items' => $selectedPropertyNos,
                     // Add receiver if needed for prefill
                     'to_receiver' => $editFets->to_receiver,
                 ];
-                $editingFetsPropertyNos = array_map('trim', explode(',', $editFets->property_no));
+                $editingFetsPropertyNos = $selectedPropertyNos;
                 
                 // ✅ Ensure the to_receiver is in the receivers list for editing
                 if ($editFets->to_receiver && !$receivers->contains($editFets->to_receiver)) {
@@ -468,8 +505,11 @@ class FetsController extends Controller
         $originalSubmitters = [];
         foreach ($units as $unit) {
             $originalFets = $fetsForRepair->first(function ($f) use ($unit) {
-                $propNos = array_map('trim', explode(',', $f->property_no ?? ''));
-                return in_array($unit->PROPERTY_NO, $propNos);
+                // Check if this property is in the FETS items
+                return DB::table('fets_items')
+                    ->where('fets_document_id', $f->id)
+                    ->where('property_no', trim($unit->PROPERTY_NO))
+                    ->exists();
             });
             $originalSubmitters[$unit->PROPERTY_NO] = $originalFets->submitter->fullname ?? null;
         }
@@ -485,8 +525,11 @@ class FetsController extends Controller
             $previousRemarks[$cleanKey]   = $unit->DPO_REMARKS;
             // Use a null-safe operator and correct logic for finding original FETS
             $originalFets = $fetsForRepair->first(function ($f) use ($unit) {
-                $propNos = array_map('trim', explode(',', $f->property_no ?? ''));
-                return in_array($unit->PROPERTY_NO, $propNos);
+                // Check if this property is in the FETS items
+                return DB::table('fets_items')
+                    ->where('fets_document_id', $f->id)
+                    ->where('property_no', trim($unit->PROPERTY_NO))
+                    ->exists();
             });
             $repairDestinations[$cleanKey] = $originalFets->repair_destination ?? 'Unknown';
         }
@@ -604,26 +647,43 @@ class FetsController extends Controller
             abort(403, 'Unauthorized.');
         }
 
-        // Fetch original "For Repair" FETS documents
+        // Fetch original "For Repair" FETS documents for this Provincial DPSC
+        // Case 1: Employee submits → Provincial verifies (verified_by = this user)
+        // Case 2: Regional DPSC submits → Provincial of same province verifies
         $fetsForRepair = FetsDocument::where('status', 'approved')
             ->where('transfer_movement', 'For Repair')
-            ->whereHas('submitter', function ($q) use ($user) {
-                $q->where('province', $user->province);
+            ->where(function($q) use ($user) {
+                // Case 1: This Provincial DPSC verified the FETS
+                $q->where('verified_by', $user->id)
+                  // Case 2: Regional DPSC from same province submitted the FETS
+                  ->orWhereHas('submitter', function($subQ) use ($user) {
+                      $subQ->where('access_level', 'Regional DPSC')
+                           ->where('province', $user->province);
+                  });
             })
             ->with('submitter') // Eager load submitter for efficiency
             ->get();
 
-        // Get all unique property numbers eligible for return
-        $propNos = $fetsForRepair->flatMap(fn($fets) => array_map('trim', explode(',', $fets->property_no)))
-            ->unique()->values()->toArray();
+        // Get all unique property numbers eligible for return from the junction table
+        $fetsIds = $fetsForRepair->pluck('id')->toArray();
+        $propNos = DB::table('fets_items')
+            ->whereIn('fets_document_id', $fetsIds)
+            ->pluck('property_no')
+            ->unique()
+            ->values()
+            ->toArray();
 
         // Base query for returnable units
         $returnableUnitsQuery = $propNos
             ? DB::table('inventory')
                 ->whereIn('PROPERTY_NO', $propNos)
-                ->where(function($q) { // Check if not already returned
-                    $q->whereNull('DPO_REMARKS')
-                        ->orWhere('DPO_REMARKS', 'not like', 'Returned from Repair%');
+                ->where(function($q) { // Include items being assessed or pending return
+                    $q->where('STATUS', 'Being Assessed for Repair')
+                        ->orWhere('STATUS', 'Pending Return');
+                })
+                ->where(function($q) { // Exclude items already returned
+                    $q->where('DPO_REMARKS', 'not like', 'Returned from Repair%')
+                        ->orWhereNull('DPO_REMARKS');
                 })
             : null; // Use null if no property numbers to query
 
@@ -683,10 +743,14 @@ class FetsController extends Controller
             // Add the is_long flag
             $item->is_long = $isItemLong($item);
 
-            // Find original submitter (existing logic)
+            // Find original submitter by checking fets_items junction table
             $originalFets = $fetsForRepair->first(function ($f) use ($item) {
-                $fPropNos = array_map('trim', explode(',', $f->property_no ?? ''));
-                return in_array($item->PROPERTY_NO, $fPropNos);
+                // Check if this property number exists in this FETS document's items
+                $hasPropNo = DB::table('fets_items')
+                    ->where('fets_document_id', $f->id)
+                    ->where('property_no', $item->PROPERTY_NO)
+                    ->exists();
+                return $hasPropNo;
             });
             $unitSubmitters[$item->PROPERTY_NO] = $originalFets->submitter->fullname ?? 'Unknown';
 
@@ -697,11 +761,15 @@ class FetsController extends Controller
             $returnableUnits->setCollection($currentPageItems);
         }
 
-        // Build locked property numbers list (Unchanged)
-        $lockedPropNos = FetsDocument::whereIn('status', ['submitted','verified','approved'])
+        // Build locked property numbers list from junction table
+        $lockedFetsIds = FetsDocument::whereIn('status', ['submitted','verified','approved'])
             ->where('transfer_movement', 'Return from Repair')
+            ->pluck('id')
+            ->toArray();
+        
+        $lockedPropNos = DB::table('fets_items')
+            ->whereIn('fets_document_id', $lockedFetsIds)
             ->pluck('property_no')
-            ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
             ->unique()
             ->toArray();
 
@@ -879,23 +947,55 @@ public function submittedEmbed()
             }
         }
 
-        // 11. Save PDF and Create Database Record (with Error Handling)
+        // 11. Save PDF and Update/Create Database Record (with Error Handling)
         $fileName = 'fets_' . now()->format('Ymd_His') . '_' . $itemCount . 'items.pdf';
         $filePath = "public/fets/{$fileName}";
         Storage::put($filePath, $pdf->Output('S'));
 
         try {
-            $fets = FetsDocument::create([
-                'property_no'        => implode(',', $validated['selected']),
-                'to_receiver'        => $toPerson,
-                'remarks'            => $finalRemarks,
-                'transfer_movement'  => $movement,
-                'repair_destination' => ($movement === 'For Repair') ? $validated['repair_destination'] : null,
-                'user_id'            => $user->id,
-                'file_name'          => $fileName,
-                'file_path'          => $filePath,
-                'status'             => 'submitted',
-            ]);
+            // Check if this is an edit operation
+            $editFetsId = $request->input('edit_fets_id');
+            
+            if ($editFetsId) {
+                // Update existing FETS
+                $fets = FetsDocument::findOrFail($editFetsId);
+                
+                // Delete old PDF file if it exists
+                if ($fets->file_path && Storage::exists($fets->file_path)) {
+                    Storage::delete($fets->file_path);
+                }
+                
+                // Update FETS record with new PDF
+                $fets->update([
+                    'file_name' => $fileName,
+                    'file_path' => $filePath,
+                    'updated_at' => now(),
+                ]);
+            } else {
+                // Create new FETS
+                $fets = FetsDocument::create([
+                    'to_receiver'        => $toPerson,
+                    'to_office'          => $validated['to_office'] ?? 'Pantawid (RPMO)',
+                    'remarks'            => $finalRemarks,
+                    'transfer_movement'  => $movement,
+                    'repair_destination' => ($movement === 'For Repair') ? $validated['repair_destination'] : null,
+                    'user_id'            => $user->id,
+                    'file_name'          => $fileName,
+                    'file_path'          => $filePath,
+                    'status'             => 'submitted',
+                ]);
+                
+                // Add items to the junction table (only for new FETS, edit already updated items)
+                foreach ($validated['selected'] as $propertyNo) {
+                    DB::table('fets_items')->insert([
+                        'fets_document_id' => $fets->id,
+                        'property_no' => trim($propertyNo),
+                        'item_status' => 'pending',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
 
 // 12. Redirect
 // Check if the request originated from the 'Return from Repair' form
@@ -1029,68 +1129,54 @@ public function update(Request $request)
 
     $toPerson = $this->determineReceiver($user, $movement, $remarks, $validatedWithDefaults);
 
-    // Create a new FETS entry using the generate method and then update the existing one
+    // Update FETS data
+    $fets->update([
+        'to_receiver' => $toPerson,
+        'to_office' => $validated['to_office'] ?? 'Pantawid (RPMO)',
+        'remarks' => ($movement === 'For Repair') ? 'Repair' : $remarks,
+        'transfer_movement' => $movement,
+        'repair_destination' => ($movement === 'For Repair') ? $validated['repair_destination'] : null,
+        'updated_at' => now(),
+    ]);
+    
+    // Update items in junction table
+    DB::table('fets_items')->where('fets_document_id', $fets->id)->delete();
+    foreach ($validated['selected'] as $propertyNo) {
+        DB::table('fets_items')->insert([
+            'fets_document_id' => $fets->id,
+            'property_no' => trim($propertyNo),
+            'item_status' => 'pending',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+    
+    // Regenerate PDF with updated data
     $tempRequest = new Request([
         'selected' => $validated['selected'],
         'transfer_movement' => $movement,
         'remarks' => $remarks,
         'repair_destination' => $validated['repair_destination'] ?? null,
-        'embed' => '1'
+        'to_receiver' => $toPerson,
+        'edit_fets_id' => $fets->id, // Pass the FETS ID so generate knows to update this one
     ]);
-
-    // Temporarily switch the request context
-    $originalRequest = request();
-    app()->instance('request', $tempRequest);
-
+    
     try {
-        // Call generate to create PDF and get new FETS data
-        $result = $this->generate($tempRequest);
-
-        // Restore original request
-        app()->instance('request', $originalRequest);
-
-        // Get the newly created FETS (last one for this user)
-        $newFets = FetsDocument::where('user_id', $user->id)
-            ->latest('created_at')
-            ->first();
-
-        if ($newFets && $newFets->id !== $fets->id) {
-            // Copy the new PDF file info to the original FETS
-            $fets->update([
-                'property_no' => $newFets->property_no,
-                'to_receiver' => $newFets->to_receiver,
-                'remarks' => $newFets->remarks,
-                'transfer_movement' => $newFets->transfer_movement,
-                'repair_destination' => $newFets->repair_destination,
-                'file_name' => $newFets->file_name,
-                'file_path' => $newFets->file_path,
-                'updated_at' => now(), // Ensure timestamp is updated for cache checking
-            ]);
-
-            // Delete the temporary FETS record
-            $newFets->delete();
-        } else {
-            throw new \Exception('Failed to generate new PDF');
-        }
-
+        // Call generate to create new PDF
+        $this->generate($tempRequest);
     } catch (\Exception $e) {
-        // Restore original request
-        app()->instance('request', $originalRequest);
-
-        // Fallback: update data without PDF regeneration
-        $fets->update([
-            'property_no' => implode(',', $validated['selected']),
-            'to_receiver' => $toPerson,
-            'remarks' => ($movement === 'For Repair') ? 'Repair' : $remarks,
-            'transfer_movement' => $movement,
-            'repair_destination' => ($movement === 'For Repair') ? $validated['repair_destination'] : null,
-            'updated_at' => now(), // Ensure timestamp is updated for cache checking
-        ]);
+        // If PDF regeneration fails, log it but don't fail the update
+        Log::warning("PDF regeneration failed for FETS #{$fets->id}: " . $e->getMessage());
     }
 
-    // Log the update
+    // Log the update (get property numbers from junction table)
+    $propertyNos = DB::table('fets_items')
+        ->where('fets_document_id', $fets->id)
+        ->pluck('property_no')
+        ->join(',');
+    
     FetsLog::create([
-        'property_no' => $fets->property_no,
+        'property_no' => $propertyNos ?: 'N/A',
         'action' => 'updated',
         'actor' => $user->fullname,
         'actor_role' => $user->access_level,
@@ -1227,7 +1313,13 @@ private function getHeadOfProperty(): ?\App\Models\Official
 
 public function reviewSubmitted()
 {
+    $user = auth()->user();
+    
+    // Provincial DPSC should only see FETS from their province
     $documents = FetsDocument::where('status', 'submitted')
+        ->whereHas('submitter', function($q) use ($user) {
+            $q->where('province', $user->province);
+        })
         ->with('submitter') // ✅ Load the submitter relationship
         ->orderByDesc('created_at')
         ->paginate(10);
@@ -1276,7 +1368,10 @@ public function submittedFets()
 
 public function showForApproval(Request $request)
 {
-    $query = FetsDocument::where('status', 'approved');
+    // Show both 'approved' and 'completed' status
+    // (completed includes Issue/Transfer, For Surrender, Return to Lender that were auto-completed)
+    $query = FetsDocument::whereIn('status', ['approved', 'completed'])
+        ->whereNotNull('approved_by'); // Only show FETS that have been approved
 
     if ($request->has('date_filter')) {
         switch ($request->date_filter) {
@@ -1345,21 +1440,27 @@ public function verify($id)
     $fets->verified_by = auth()->id(); // optional: add this if your table has it
     $fets->save();
 
- FetsLog::create([
-     'property_no' => $fets->property_no,
+ // Get property numbers from junction table for logging
+    $logPropertyNos = DB::table('fets_items')
+        ->where('fets_document_id', $fets->id)
+        ->pluck('property_no')
+        ->join(',');
+    
+    FetsLog::create([
+     'property_no' => $logPropertyNos ?: 'N/A',
      'action'      => 'verified',
      'actor'       => auth()->user()->fullname,
      'actor_role'  => auth()->user()->access_level,
      'remarks'     => "FETS #{$fets->id} verified by DPSC",
  ]);
 
-    // Spatie activity log
+    // Spatie activity log - reuse property numbers already fetched
     activity()
         ->causedBy(auth()->user())
         ->performedOn($fets)
         ->withProperties([
             'fets_id'      => $fets->id,
-            'property_no' => $fets->property_no
+            'property_no' => $logPropertyNos ?: 'N/A'
         ])
         ->log('Verified FETS');
 
@@ -1379,7 +1480,11 @@ public function verify($id)
         $fets->approved_by = auth()->id();
         $fets->save();
 
-        $propertyNumbers = array_map('trim', explode(',', $fets->property_no));
+        // Get property numbers from junction table
+        $propertyNumbers = DB::table('fets_items')
+            ->where('fets_document_id', $fets->id)
+            ->pluck('property_no')
+            ->toArray();
         $userFullName = auth()->user()->fullname;
         $userAccessLevel = auth()->user()->access_level;
 
@@ -1404,30 +1509,35 @@ public function verify($id)
 
             // 💥 FIX: Conditionally close the original 'For Repair' FETS AND remove returned property numbers.
             // Get all original 'For Repair' FETS documents that contained any of the items just returned
-            $originalFetsToClose = FetsDocument::where('transfer_movement', 'For Repair')->where('status', 'approved')
-                ->where(function ($query) use ($propertyNumbers) {
-                    // Find all *original* FETS documents that contained any of the currently returned property numbers
-                    foreach ($propertyNumbers as $propNo) {
-                        $query->orWhere('property_no', 'like', "%{$propNo}%");
-                    }
-                })->get();
+            $originalFetsIds = DB::table('fets_items')
+                ->whereIn('property_no', $propertyNumbers)
+                ->pluck('fets_document_id')
+                ->unique()
+                ->toArray();
+            
+            $originalFetsToClose = FetsDocument::where('transfer_movement', 'For Repair')
+                ->where('status', 'approved')
+                ->whereIn('id', $originalFetsIds)
+                ->get();
 
             // Check if the original FETS is fully completed before marking it as such
             foreach ($originalFetsToClose as $originalFets) {
-                // Get ALL property numbers from the original FETS (e.g., the 15 units)
-                $originalPropNos = array_map('trim', explode(',', $originalFets->property_no));
+                // Get ALL property numbers from the original FETS using junction table
+                $originalPropNos = DB::table('fets_items')
+                    ->where('fets_document_id', $originalFets->id)
+                    ->pluck('property_no')
+                    ->toArray();
 
                 // Get ALL property numbers that have been successfully returned from repair
-                $successfulReturnPropNos = FetsDocument::where('transfer_movement', 'Return from Repair')
-                    ->whereIn('status', ['approved', 'completed']) // Look for approved/completed returns
-                    ->where(function ($query) use ($originalPropNos) {
-                        // Look for successful return documents that include any of these original items
-                        foreach ($originalPropNos as $propNo) {
-                            $query->orWhere('property_no', 'like', "%{$propNo}%");
-                        }
-                    })
+                $returnFetsIds = FetsDocument::where('transfer_movement', 'Return from Repair')
+                    ->whereIn('status', ['approved', 'completed'])
+                    ->pluck('id')
+                    ->toArray();
+                
+                $successfulReturnPropNos = DB::table('fets_items')
+                    ->whereIn('fets_document_id', $returnFetsIds)
+                    ->whereIn('property_no', $originalPropNos) // Only check items from this original FETS
                     ->pluck('property_no')
-                    ->flatMap(fn($propertyNos) => array_map('trim', explode(',', $propertyNos)))
                     ->unique()
                     ->toArray();
 
@@ -1453,9 +1563,14 @@ public function verify($id)
             $fets->status = 'completed';
             $fets->save();
 
-            // Logging the completion
+            // Logging the completion - get property numbers from junction table
+            $completionLogPropertyNos = DB::table('fets_items')
+                ->where('fets_document_id', $fets->id)
+                ->pluck('property_no')
+                ->join(',');
+            
             FetsLog::create([
-                'property_no' => $fets->property_no,
+                'property_no' => $completionLogPropertyNos ?: 'N/A',
                 'action' => 'completed',
                 'actor' => $userFullName,
                 'actor_role' => $userAccessLevel,
@@ -1479,6 +1594,15 @@ public function verify($id)
                         'DPO_REMARKS' => "Assigned for Repair to: {$fets->repair_destination}",
                         'updated_at' => now(),
                     ]);
+            } elseif ($fets->transfer_movement === 'Return to Lender' && strtolower($fets->remarks) === 'unserviceable') {
+                // Lock unserviceable items - mark them so they cannot be selected for FETS
+                DB::table('inventory')->whereRaw("REPLACE(TRIM(PROPERTY_NO),' ','') = ?", [$cleanedPropNo])
+                    ->update([
+                        'STATUS' => 'Unserviceable',
+                        'RECEIVER' => $receiverName,
+                        'DPO_REMARKS' => 'Unserviceable - Returned to Lender',
+                        'updated_at' => now()
+                    ]);
             } else {
                 DB::table('inventory')->whereRaw("REPLACE(TRIM(PROPERTY_NO),' ','') = ?", [$cleanedPropNo])
                     ->update(['RECEIVER' => $receiverName, 'updated_at' => now()]);
@@ -1491,9 +1615,14 @@ public function verify($id)
             $fets->save();
         }
 
-        // Logging the approval
+        // Logging the approval - get property numbers from junction table
+        $approveLogPropertyNos = DB::table('fets_items')
+            ->where('fets_document_id', $fets->id)
+            ->pluck('property_no')
+            ->join(',');
+        
         FetsLog::create([
-            'property_no' => $fets->property_no,
+            'property_no' => $approveLogPropertyNos ?: 'N/A',
             'action' => 'approved',
             'actor' => $userFullName,
             'actor_role' => $userAccessLevel,
@@ -1524,7 +1653,11 @@ public function verify($id)
     $fets->rejected_remarks = $request->remarks;
     $fets->save();
 
-    $propertyNumbers = array_map('trim', explode(',', $fets->property_no));
+    // Get property numbers from junction table
+    $propertyNumbers = DB::table('fets_items')
+        ->where('fets_document_id', $fets->id)
+        ->pluck('property_no')
+        ->toArray();
 
     // 🔹 If Return-from-Repair FETS is rejected → restore previous inventory values
     if (($fets->form_data['return_type'] ?? null) === 'from_repair') {
@@ -1553,9 +1686,14 @@ public function verify($id)
         }
     }
 
-    // Log rejection
+    // Log rejection - get property numbers from junction table
+    $rejectLogPropertyNos = DB::table('fets_items')
+        ->where('fets_document_id', $fets->id)
+        ->pluck('property_no')
+        ->join(',');
+    
     FetsLog::create([
-        'property_no' => $fets->property_no,
+        'property_no' => $rejectLogPropertyNos ?: 'N/A',
         'action'      => 'rejected',
         'actor'       => auth()->user()->fullname,
         'actor_role'  => auth()->user()->access_level,
@@ -1711,8 +1849,7 @@ public function preview($id)
 
 private function regeneratePdfForPreview($doc)
 {
-    // For preview purposes, if the PDF file doesn't exist, we'll create a placeholder
-    // or try to regenerate using a simplified approach
+    // For preview purposes, regenerate the PDF directly without creating a new FETS record
 
     // First, let's try to create the directory if it doesn't exist
     $filePath = storage_path("app/{$doc->file_path}");
@@ -1731,16 +1868,30 @@ private function regeneratePdfForPreview($doc)
         auth()->login($docOwner);
 
         try {
-            // Get the property numbers from the document
-            $propertyNos = array_map('trim', explode(',', $doc->property_no));
+            // Get the property numbers from the junction table
+            $propertyNos = DB::table('fets_items')
+                ->where('fets_document_id', $doc->id)
+                ->pluck('property_no')
+                ->toArray();
 
-            // Create a temporary request
+            // Fallback to the property_no field if junction table is empty
+            if (empty($propertyNos) && $doc->property_no) {
+                $propertyNos = array_map('trim', explode(',', $doc->property_no));
+            }
+
+            if (empty($propertyNos)) {
+                throw new \Exception('No property numbers found for this FETS document');
+            }
+
+            // Create a temporary request with edit_fets_id to update existing record
             $tempRequest = new Request([
                 'selected' => $propertyNos,
                 'transfer_movement' => $doc->transfer_movement,
                 'remarks' => $doc->remarks,
                 'repair_destination' => $doc->repair_destination,
                 'to_receiver' => $doc->to_receiver,
+                'to_office' => $doc->to_office,
+                'edit_fets_id' => $doc->id,  // This tells generate() to update existing FETS
                 'embed' => '1'
             ]);
 
@@ -1749,26 +1900,11 @@ private function regeneratePdfForPreview($doc)
             app()->instance('request', $tempRequest);
 
             try {
-                // Call generate to create PDF
-                $this->generate($tempRequest);
-
-                // Get the newly created FETS (last one for this user)
-                $newFets = FetsDocument::where('user_id', $doc->user_id)
-                    ->latest('created_at')
-                    ->first();
-
-                if ($newFets && $newFets->id !== $doc->id) {
-                    // Update the original FETS with new file info
-                    $doc->update([
-                        'file_name' => $newFets->file_name,
-                        'file_path' => $newFets->file_path,
-                    ]);
-
-                    // Delete the temporary FETS record (but keep the PDF file)
-                    $newFets->delete();
-                } else {
-                    throw new \Exception('No new FETS document was created');
-                }
+                // Call generate to regenerate PDF - it will update the existing FETS
+                $result = $this->generate($tempRequest);
+                
+                // Refresh the document to get updated file paths
+                $doc->refresh();
 
             } finally {
                 // Restore original request
