@@ -78,8 +78,9 @@
             @endif
 
             {{-- Form --}}
-            <form action="{{ route('fets.generate') }}" method="POST">
+            <form action="{{ route('fets.generate') }}" method="POST" enctype="multipart/form-data">
                 @csrf
+                @method('POST')
 
                 {{-- Transfer Movement --}}
                 <div class="mb-4">
