@@ -20,12 +20,12 @@
                                 <div class="mt-3 flex gap-3">
                                     <a href="{{ route('fets.download', ['id' => session('fets_id')]) }}"
                                        class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow">
-                                        📥 Download PDF
+                                        Download PDF
                                     </a>
                                     <a href="{{ route('fets.preview', ['id' => session('fets_id')]) }}"
                                        target="_blank"
                                        class="inline-block bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded shadow">
-                                        👁️ Preview PDF
+                                        Preview PDF
                                     </a>
                                 </div>
                             @endif
@@ -236,12 +236,14 @@
                     $canSubmit = $provincialDisplay !== 'Provincial DPSC - Not Assigned' &&
                                  $headOfPropertyDisplay !== 'Head of Property - Not Assigned';
                 @endphp
-                <button type="submit"
-                        id="submitBtn"
-                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm {{ $canSubmit ? '' : 'opacity-50 cursor-not-allowed' }}"
-                    {{ $canSubmit ? '' : 'disabled' }}>
-                    Submit FETS Request
-                </button>
+                <div class="flex gap-2">
+                    <button type="submit"
+                            id="submitBtn"
+                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm {{ $canSubmit ? '' : 'opacity-50 cursor-not-allowed' }}"
+                        {{ $canSubmit ? '' : 'disabled' }}>
+                        Submit FETS Request
+                    </button>
+                </div>
                 @if(!$canSubmit)
                     <div class="text-red-600 mt-2">
                         ⚠️ FETS submission blocked: Missing Provincial DPSC or Head of Property. Contact Superadmin.

@@ -57,6 +57,9 @@ class UserController extends Controller
             $usersQuery->where('office', $office);
         }
 
+        // Order by latest first (most recently created/updated)
+        $usersQuery->orderBy('updated_at', 'desc');
+
         $users = $usersQuery->paginate(10);
 
         // ✅ If nothing found, check archived

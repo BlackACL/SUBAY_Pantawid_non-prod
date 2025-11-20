@@ -49,11 +49,11 @@ class TwoFactorCodeController extends Controller
         if (
             $user->hasRole('superadmin')
         ) {
-            return redirect('/logs')->with('success', 'Login successfully!');
+            return redirect('/dashboard')->with('success', 'Login successfully!');
         } elseif ($user->hasRole('Regional DPSC')) {
-            return redirect('/Regional/VerifiedFETS')->with('success', 'Login successfully!');
+            return redirect('/Regional/Dashboard')->with('success', 'Login successfully!');
         } elseif ($user->hasRole('Provincial DPSC')) {
-            return redirect('/FETSrequest')->with('success', 'Login successfully!');
+            return redirect('/Provincial/Dashboard')->with('success', 'Login successfully!');
         } else {
             return redirect('/Inventory')->with('success', 'Login successfully!');
         }

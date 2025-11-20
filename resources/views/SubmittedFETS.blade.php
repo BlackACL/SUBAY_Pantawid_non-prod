@@ -147,7 +147,10 @@
                                     <div class="flex justify-center items-center space-x-2 h-full">
                                         <!-- Edit Button (only for pending FETS) -->
                         @if($doc->status === 'submitted')
-                        <button @click="editFets({{ $doc->id }}, '{{ addslashes($doc->transfer_movement) }}', '{{ addslashes($doc->remarks) }}', '{{ addslashes($doc->repair_destination) }}', '{{ $doc->property_no }}')"
+                        @php
+                            $propertyNos = DB::table('fets_items')->where('fets_document_id', $doc->id)->pluck('property_no')->implode(',');
+                        @endphp
+                        <button @click="editFets({{ $doc->id }}, '{{ addslashes($doc->transfer_movement) }}', '{{ addslashes($doc->remarks) }}', '{{ addslashes($doc->repair_destination) }}', '{{ $propertyNos }}')"
                         class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
                             <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>

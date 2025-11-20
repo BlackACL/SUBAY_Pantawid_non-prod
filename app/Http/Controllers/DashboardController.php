@@ -16,11 +16,17 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
         
-        // Total employees
-        $totalEmployees = User::where('access_level', 'Employee')->count();
+        // Total employees (excluding archived)
+        $totalEmployees = User::where('access_level', 'Employee')
+            ->whereNull('archived_at')
+            ->count();
         
-        // Employees by province
+        // Archived users count (all roles)
+        $archivedUsers = User::whereNotNull('archived_at')->count();
+        
+        // Employees by province (excluding archived)
         $employeesByProvince = User::where('access_level', 'Employee')
+            ->whereNull('archived_at')
             ->whereNotNull('province')
             ->select('province', DB::raw('count(*) as count'))
             ->groupBy('province')
@@ -30,6 +36,19 @@ class DashboardController extends Controller
         // Total unserviceable units
         $totalUnserviceable = DB::table('inventory')
             ->where('STATUS', 'Unserviceable')
+            ->count();
+        
+        // All employees + Provincial DPSC + Regional DPSC inventory units (combined)
+        $allEmployeeInventoryCount = DB::table('inventory')
+            ->whereIn('RECEIVER', function($query) {
+                $query->select('fullname')
+                    ->from('users')
+                    ->whereIn('access_level', ['Employee', 'Provincial DPSC', 'Regional DPSC']);
+            })
+            ->where(function($q) {
+                $q->whereNull('STATUS')
+                  ->orWhere('STATUS', '!=', 'Unserviceable');
+            })
             ->count();
         
         // Total FETS
@@ -61,8 +80,10 @@ class DashboardController extends Controller
         
         return view('dashboard.superadmin', compact(
             'totalEmployees',
+            'archivedUsers',
             'employeesByProvince',
             'totalUnserviceable',
+            'allEmployeeInventoryCount',
             'totalFets',
             'approvedFets',
             'fetsByProvince',
@@ -78,11 +99,14 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
         
-        // Total employees
-        $totalEmployees = User::where('access_level', 'Employee')->count();
+        // Total employees (excluding archived)
+        $totalEmployees = User::where('access_level', 'Employee')
+            ->whereNull('archived_at')
+            ->count();
         
-        // Employees by province
+        // Employees by province (excluding archived)
         $employeesByProvince = User::where('access_level', 'Employee')
+            ->whereNull('archived_at')
             ->whereNotNull('province')
             ->select('province', DB::raw('count(*) as count'))
             ->groupBy('province')
@@ -170,9 +194,10 @@ class DashboardController extends Controller
         $user = auth()->user();
         $province = $user->province;
         
-        // Employees under this province
+        // Employees under this province (excluding archived)
         $totalEmployees = User::where('access_level', 'Employee')
             ->where('province', $province)
+            ->whereNull('archived_at')
             ->count();
         
         // FETS requests (submitted, waiting for verification)

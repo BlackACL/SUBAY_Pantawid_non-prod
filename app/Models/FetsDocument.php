@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Model;
 class FetsDocument extends Model
 {
     protected $fillable = [
-        'property_no',
         'to_receiver',
         'to_office',
         'remarks',

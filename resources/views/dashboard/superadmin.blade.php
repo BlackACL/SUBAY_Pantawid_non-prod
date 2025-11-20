@@ -6,8 +6,8 @@
     </x-slot>
 
     <div class="p-6">
-        {{-- Summary Cards --}}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        {{-- Summary Cards Row 1 - 3 Cards --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
             {{-- Total Employees Card --}}
             <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
                 <div class="flex items-center justify-between">
@@ -17,6 +17,19 @@
                     </div>
                     <div class="bg-blue-100 rounded-full p-3">
                         <i class="fas fa-users text-blue-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Archived Users Card --}}
+            <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-gray-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Archived Users</p>
+                        <h3 class="text-3xl font-bold text-gray-800 mt-2" id="archived-users">{{ $archivedUsers }}</h3>
+                    </div>
+                    <div class="bg-gray-100 rounded-full p-3">
+                        <i class="fas fa-user-slash text-gray-600 text-2xl"></i>
                     </div>
                 </div>
             </div>
@@ -33,7 +46,10 @@
                     </div>
                 </div>
             </div>
+        </div>
 
+        {{-- Summary Cards Row 2 - 3 Cards --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
             {{-- Total FETS Card --}}
             <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
                 <div class="flex items-center justify-between">
@@ -58,6 +74,19 @@
                     </div>
                     <div class="bg-green-100 rounded-full p-3">
                         <i class="fas fa-check-double text-green-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            {{-- All Employee & DPSC Units --}}
+            <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-teal-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">All Employee & DPSC Units</p>
+                        <h3 class="text-3xl font-bold text-gray-800 mt-2" id="all-employee-inventory">{{ $allEmployeeInventoryCount }}</h3>
+                    </div>
+                    <div class="bg-teal-100 rounded-full p-3">
+                        <i class="fas fa-boxes text-teal-600 text-2xl"></i>
                     </div>
                 </div>
             </div>

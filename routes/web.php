@@ -353,6 +353,8 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['verified', 'twofactor'])->group(function () {
         Route::get('/FETS', [FetsController::class, 'select'])->name('fets.select');
         Route::post('/FETS/generate', [FetsController::class, 'generate'])->name('fets.generate');
+        Route::post('/FETS/preview-generate', [FetsController::class, 'generatePreview'])->name('fets.preview.generate');
+        Route::get('/FETS/preview-file/{filename}', [FetsController::class, 'servePreview'])->name('fets.preview.serve');
         Route::post('/FETS/update', [FetsController::class, 'update'])->name('fets.update');
     });
 });

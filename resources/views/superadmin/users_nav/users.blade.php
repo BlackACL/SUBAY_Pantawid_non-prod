@@ -861,18 +861,56 @@
         /* -------------------
         Modal open/close helpers for Add modal
         ------------------- */
+        let addFormHasChanges = false;
+        
         function openModal() {
             document.getElementById('modal-overlay')?.classList.remove('hidden');
             document.getElementById('modal')?.classList.remove('hidden');
             document.getElementById('main-content')?.classList.add('blur-md');
             document.body.style.overflow = 'hidden';
+            addFormHasChanges = false; // Reset on open
+            
+            // Track changes in add user form
+            const form = document.querySelector('#modal form');
+            if (form) {
+                form.addEventListener('input', function() {
+                    addFormHasChanges = true;
+                });
+                form.addEventListener('change', function() {
+                    addFormHasChanges = true;
+                });
+            }
         }
+        
         function closeModal() {
+            if (addFormHasChanges) {
+                // Show discard confirmation
+                document.getElementById('discard-modal-overlay')?.classList.remove('hidden');
+                // Set up the discard buttons for Add modal
+                document.getElementById('discard-yes-btn').onclick = function() {
+                    actuallyCloseAddModal();
+                };
+                document.getElementById('discard-no-btn').onclick = function() {
+                    document.getElementById('discard-modal-overlay')?.classList.add('hidden');
+                };
+            } else {
+                actuallyCloseAddModal();
+            }
+        }
+        
+        function actuallyCloseAddModal() {
             document.getElementById('modal-overlay')?.classList.add('hidden');
             document.getElementById('modal')?.classList.add('hidden');
             document.getElementById('main-content')?.classList.remove('blur-md');
+            document.getElementById('discard-modal-overlay')?.classList.add('hidden');
             document.body.style.overflow = 'auto';
+            addFormHasChanges = false;
+            
+            // Reset form
+            const form = document.querySelector('#modal form');
+            if (form) form.reset();
         }
+        
         document.getElementById('modal-overlay')?.addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 
         /* -------------------
