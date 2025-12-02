@@ -267,7 +267,7 @@
                         <!-- Office -->
                         <div class="mb-4">
                             <label for="office" class="block font-medium">Office</label>
-                            <select name="office" id="office" class="w-full border rounded px-3 py-2 w-64" required>
+                            <select name="office" id="office" class="w-full border rounded px-3 py-2 w-64">
                                 <option value="">Select Office</option>
                             </select>
                         </div>
@@ -294,7 +294,6 @@
                             <div>
                                 <label for="access_level" class="block font-medium">Access Level</label>
                                 <select name="access_level" id="access_level" class="w-full border rounded px-3 py-2">
-                                    <option value="Superadmin">Superadmin</option>
                                     <option value="Regional DPSC">Regional DPSC</option>
                                     <option value="Provincial DPSC">Provincial DPSC</option>
                                     <option value="Employee">Employee</option>
@@ -308,16 +307,7 @@
                                 </select>
                             </div>
                         </div>
-                        <!-- Locked Status | Deleted Status -->
-                        <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label for="locked_status" class="block font-medium">Locked Status</label>
-                                <select name="locked_status" id="locked_status" class="w-full border rounded px-3 py-2">
-                                    <option value="No">Unlocked</option>
-                                    <option value="Yes">Locked</option>
-                                </select>
-                            </div>
-                        </div>
+
                         <!-- Submit Button -->
                         <div class="flex justify-end">
                             <button type="submit" class="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800">Add User</button>
@@ -567,22 +557,14 @@
                             </div>
                         </div>
 
-                        <!-- Access Level | Activated -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <!-- Access Level (single column) -->
+                        <div class="mb-4 w-full md:w-1/2">
                             <div>
                                 <label class="block font-medium">Access Level</label>
                                 <select id="edit-access_level" class="w-full border rounded px-3 py-2">
-                                    <option value="Superadmin">Superadmin</option>
                                     <option value="Regional DPSC">Regional DPSC</option>
                                     <option value="Provincial DPSC">Provincial DPSC</option>
                                     <option value="Employee">Employee</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block font-medium">Activated</label>
-                                <select id="edit-activated" class="w-full border rounded px-3 py-2">
-                                    <option value="Yes">Yes</option>
-                                    <option value="No">No</option>
                                 </select>
                             </div>
                         </div>
@@ -1093,7 +1075,6 @@
                     document.getElementById('edit-company_id').value = u.company_id ?? '';
                     document.getElementById('edit-employee_status').value = u.employee_status ?? '';
                     document.getElementById('edit-access_level').value = u.access_level ?? '';
-                    document.getElementById('edit-activated').value = u.activated ?? '';
                     document.getElementById('edit-locked_status').value = u.locked_status ?? '';
 
                     // load selects in sequence and set selected values
@@ -1137,7 +1118,6 @@
                     employee_status: document.getElementById('edit-employee_status')?.value ?? '',
                     company_id: document.getElementById('edit-company_id')?.value ?? '',
                     access_level: document.getElementById('edit-access_level')?.value ?? '',
-                    activated: document.getElementById('edit-activated')?.value ?? '',
                     locked_status: document.getElementById('edit-locked_status')?.value ?? ''
                 };
 

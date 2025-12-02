@@ -158,7 +158,7 @@ class UserController extends Controller
                 'last_name' => 'required|string|max:255',
                 'username' => 'required|string|max:255',
                 'company_id' => 'required|string|max:255|unique:users,company_id',
-                'office' => 'required|string|max:255',
+                'office' => 'nullable|string|max:255',
                 'region' => 'required|string|max:255',
                 'province' => 'required|string|max:255',
                 'municipality' => 'required|string|max:255',
@@ -166,7 +166,6 @@ class UserController extends Controller
                 'employee_status' => 'required|string|max:255',
                 'access_level' => 'required|string|max:255',
                 'activated' => 'required|string|in:Yes,No',
-                'locked_status' => 'required|string|in:Yes,No',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->route('users')->withErrors($e->validator)->withInput()->with('openModal', true);
@@ -183,7 +182,7 @@ class UserController extends Controller
         $user->fullname = $fullname;
         $user->username = $validated['username'];
         $user->company_id = $validated['company_id'];
-        $user->office = $validated['office'];
+        $user->office = $validated['office'] ?? null;
         $user->region = $validated['region'];
         $user->province = $validated['province'];
         $user->municipality = $validated['municipality'];
@@ -191,7 +190,7 @@ class UserController extends Controller
         $user->employee_status = $validated['employee_status'];
         $user->access_level = $validated['access_level'];
         $user->activated = $validated['activated'];
-        $user->locked_status = $validated['locked_status'];
+        $user->locked_status = 'No';
 
         $user->password = Hash::make($password);
         $user->email_verified_at = now();
@@ -227,9 +226,8 @@ class UserController extends Controller
             'region' => 'required|string|max:255',
             'province' => 'required|string|max:255',
             'municipality' => 'required|string|max:255',
-            'office' => 'required|string|max:255',
+            'office' => 'nullable|string|max:255',
             'access_level' => 'required|string|max:255',
-            'activated' => 'required|string|in:Yes,No',
             'locked_status' => 'required|string|in:Yes,No',
         ]);
 
