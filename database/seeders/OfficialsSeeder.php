@@ -12,24 +12,24 @@ class OfficialsSeeder extends Seeder
     {
         $officials = [
             // Provincial DPSC
-            ['province' => 'Davao Occidental', 'role' => 'Provincial DPSC', 'fullname' => 'Jeyson A. Alvarado'],
-            ['province' => 'Davao Del Sur',    'role' => 'Provincial DPSC', 'fullname' => 'Ana Lou A. Albacite'],
-            ['province' => 'Davao City',       'role' => 'Provincial DPSC', 'fullname' => 'Ivy Balbuena'],
-            ['province' => 'Davao Del Norte',  'role' => 'Provincial DPSC', 'fullname' => 'Genevieve N. Jitotowani'],
-            ['province' => 'Davao De Oro',     'role' => 'Provincial DPSC', 'fullname' => 'Gino Logronio'],
-            ['province' => 'Davao Oriental',   'role' => 'Provincial DPSC', 'fullname' => 'Mayzel Dawn Rebuyon'],
+            ['province' => 'Davao Occidental', 'role' => 'Provincial DPSC', 'fullname' => 'Jeyson A. Alvarado', 'user_id' => null],
+            ['province' => 'Davao Del Sur',    'role' => 'Provincial DPSC', 'fullname' => 'Ana Lou A. Albacite', 'user_id' => null],
+            ['province' => 'Davao City',       'role' => 'Provincial DPSC', 'fullname' => 'Ivy Balbuena', 'user_id' => null],
+            ['province' => 'Davao Del Norte',  'role' => 'Provincial DPSC', 'fullname' => 'Genevieve N. Jitotowani', 'user_id' => null],
+            ['province' => 'Davao De Oro',     'role' => 'Provincial DPSC', 'fullname' => 'Gino Logronio', 'user_id' => null],
+            ['province' => 'Davao Oriental',   'role' => 'Provincial DPSC', 'fullname' => 'Mayzel Dawn Rebuyon', 'user_id' => null],
 
             // Regional DPSC
-            ['province' => null, 'role' => 'Regional DPSC', 'fullname' => 'Russell Allen S. Mozo'],
+            ['province' => null, 'role' => 'Regional DPSC', 'fullname' => 'Russell Allen S. Mozo', 'user_id' => null],
 
             // Head of Property
-            ['province' => null, 'role' => 'Head of Property', 'fullname' => 'Al Jay Meliton'],
+            ['province' => null, 'role' => 'Head of Property', 'fullname' => 'Al Jay Meliton', 'user_id' => null],
 
             // Recommending
-            ['province' => null, 'role' => 'Recommending', 'fullname' => 'Margie Cabido-Sobretodo'],
+            ['province' => null, 'role' => 'Recommending', 'fullname' => 'Margie Cabido-Sobretodo', 'user_id' => null],
 
             // Approving
-            ['province' => null, 'role' => 'Approving', 'fullname' => 'Mia Dulce Corazon V. Monesit'],
+            ['province' => null, 'role' => 'Approving', 'fullname' => 'Mia Dulce Corazon V. Monesit', 'user_id' => null],
         ];
 
         // Disable event-based history logging for seeding
@@ -43,6 +43,7 @@ class OfficialsSeeder extends Seeder
                     ],
                     [
                         'active'   => true,
+                        'user_id'  => $official['user_id'],
                     ]
                 );
             }

@@ -135,7 +135,35 @@ class UserController extends Controller
 
         $archivedUsers = $query->paginate(10);
 
-        return view('superadmin.archives_nav.archives', compact('archivedUsers'));
+        // ✅ Build dynamic province-municipality map from Place model
+        $provinces = Place::where('type', Place::TYPE_PROVINCE)
+            ->with(['children' => function($query) {
+                $query->where('type', Place::TYPE_MUNICIPALITY)
+                    ->orderBy('name');
+            }])
+            ->orderBy('name')
+            ->get();
+
+        $provinceMunicipalityMap = [];
+        foreach ($provinces as $province) {
+            $provinceMunicipalityMap[$province->name] = $province->children->pluck('name')->toArray();
+        }
+
+        // ✅ Build dynamic municipality-office map from Place model
+        $municipalities = Place::where('type', Place::TYPE_MUNICIPALITY)
+            ->with(['children' => function($query) {
+                $query->where('type', Place::TYPE_OFFICE)
+                    ->orderBy('name');
+            }])
+            ->orderBy('name')
+            ->get();
+
+        $officeMap = [];
+        foreach ($municipalities as $municipality) {
+            $officeMap[$municipality->name] = $municipality->children->pluck('name')->toArray();
+        }
+
+        return view('superadmin.archives_nav.archives', compact('archivedUsers', 'provinceMunicipalityMap', 'officeMap'));
     }
 
     /**
@@ -151,25 +179,20 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
-        try {
-            $validated = $request->validate([
-                'first_name' => 'required|string|max:255',
-                'middle_name' => 'nullable|string|max:255',
-                'last_name' => 'required|string|max:255',
-                'username' => 'required|string|max:255',
-                'company_id' => 'required|string|max:255|unique:users,company_id',
-                'office' => 'nullable|string|max:255',
-                'region' => 'required|string|max:255',
-                'province' => 'required|string|max:255',
-                'municipality' => 'required|string|max:255',
-                'email' => 'required|email|max:255|unique:users,email',
-                'employee_status' => 'required|string|max:255',
-                'access_level' => 'required|string|max:255',
-                'activated' => 'required|string|in:Yes,No',
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return redirect()->route('users')->withErrors($e->validator)->withInput()->with('openModal', true);
-        }
+        $validated = $request->validate([
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'username' => 'required|string|max:255',
+            'company_id' => 'required|string|max:255|unique:users,company_id',
+            'office' => 'nullable|string|max:255',
+            'region' => 'required|string|max:255',
+            'province' => 'required|string|max:255',
+            'municipality' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email',
+            'employee_status' => 'required|string|max:255',
+            'access_level' => 'required|string|max:255',
+        ]);
 
         // Compose fullname
         $fullname = User::composeFullname($validated['last_name'], $validated['first_name'], $validated['middle_name'] ?? '');
@@ -189,7 +212,7 @@ class UserController extends Controller
         $user->email = $validated['email'];
         $user->employee_status = $validated['employee_status'];
         $user->access_level = $validated['access_level'];
-        $user->activated = $validated['activated'];
+        $user->activated = 'Yes';
         $user->locked_status = 'No';
 
         $user->password = Hash::make($password);
@@ -228,6 +251,7 @@ class UserController extends Controller
             'municipality' => 'required|string|max:255',
             'office' => 'nullable|string|max:255',
             'access_level' => 'required|string|max:255',
+            'activated' => 'required|string|in:Yes,No',
             'locked_status' => 'required|string|in:Yes,No',
         ]);
 

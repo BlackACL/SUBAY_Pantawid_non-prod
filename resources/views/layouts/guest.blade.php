@@ -21,9 +21,14 @@
                 console.log('DOM loaded, page should be interactive');
             });
         </script>
+        <style>
+            body {
+                background-image: url('{{ asset("images/bg.png") }}');
+            }
+        </style>
     </head>
     <body class="font-sans text-gray-900 antialiased bg-cover bg-center min-h-screen" 
-        style="background-image: url('/images/bg.png'); background-repeat: no-repeat; background-size: cover;">
+        style="background-repeat: no-repeat; background-size: cover;">
         <div class="min-h-screen flex flex-col justify-center items-center pt-6 sm:pt-0">
 
             <!-- Logos -->

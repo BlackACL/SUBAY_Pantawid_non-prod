@@ -1,5 +1,9 @@
-<aside class="w-64 min-w-[16rem] max-w-[16rem] h-screen border-r border-gray-200 flex flex-col shadow-lg bg-cover bg-center" 
-       style="background-image: url('/images/bg.png');">
+<style>
+    aside.nav-sidebar {
+        background-image: url('{{ asset("images/bg.png") }}');
+    }
+</style>
+<aside class="nav-sidebar w-64 min-w-[16rem] max-w-[16rem] h-screen border-r border-gray-200 flex flex-col shadow-lg bg-cover bg-center">
     <!-- Logo -->
     <div class="flex items-center justify-center py-8 border-b">
         @if(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('superadmin'))

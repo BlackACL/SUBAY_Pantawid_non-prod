@@ -17,16 +17,7 @@
             padding: 0 0 30px 0;
         }
 
-        .header-table {
-            width: 100%;
-            margin-bottom: 8px;
-            font-family: Arial, sans-serif;
-        }
 
-        .header-table td {
-            padding: 2px;
-            vertical-align: middle;
-        }
 
         h3 {
             font-size: 13.5pt;
@@ -111,20 +102,22 @@
 </head>
 <body>
     <!-- Header Container -->
-    <table class="header-table">
-        <tr>
-            <td style="width: 80px; vertical-align: middle;">
-                <img src="{{ public_path('images/dswd_logo.png') }}" style="height: 60px; width: auto;">
-            </td>
-            <td style="text-align: center; vertical-align: middle;">
-                <div style="font-size: 13pt; font-weight: bold;">ADMINISTRATIVE DIVISION</div>
-                <div style="font-size: 10pt; font-weight: bold;">FIELD OFFICE {{ $field_office }}</div>
-                <div style="font-size: 8pt;">DSWD-AS-GF-003 | REV 02 / 07 OCT 2022</div>
-            </td>
-            <td style="width: 80px;"></td>
-        </tr>
-    </table>
-    <hr class="header-line">
+    <div class="header-container">
+        <!-- Header Area -->
+        <div style="display: flex; align-items: center; margin-top: 0px; margin-bottom: 2px; font-family: 'Times New Roman', Times, serif;">
+            <div style="flex: 0 0 auto;">
+                <img src="{{ public_path('images/pdf_logo.png') }}" style="height: 2.0cm; width: auto; " alt="DSWD Logo">
+            </div>
+            <div style="flex: 1; display:flex; justify-content:flex-end; font-weight: bold;">
+                <div style="display: flex; flex-direction: column; text-align: center; line-height: 1.15; margin-right: -600px; margin-top: -60px;">
+                    <div style="font-size: 13pt;">ADMINISTRATIVE DIVISION</div>
+                    <div style="font-size: 10pt;">FIELD OFFICE {{ $field_office }}</div>
+                    <div style="font-size: 8pt; font-weight: normal;">DSWD-AS-GF-003 | REV 02 / 07 OCT 2022</div>
+                </div>
+            </div>
+        </div>
+        <hr class="header-line">
+    </div>
 
     <h3 style="margin-top: 10px;">FURNITURE AND EQUIPMENT TRANSFER SLIP (FETS)</h3>
 
@@ -240,12 +233,27 @@
     </table>
 
     <div class="footer-container">
+        <div style="margin-bottom: -100px;">
+        <script type="text/php">
+            if (isset($pdf)) {
+                $text = "PAGE {PAGE_NUM} of {PAGE_COUNT}";
+                $font = $fontMetrics->getFont("Arial", "bold");
+                $size = 7;
+                $y = $pdf->get_height() - 90;
+                $x = ($pdf->get_width() - $fontMetrics->getTextWidth($text, $font, $size)) / 2 + 25;
+                $pdf->page_text($x, $y, $text, $font, $size, array(0, 0, 0));
+            }
+        </script>
+        
         <hr class="footer-line">
-        <p style="text-align: center; font-size: 7.5pt; margin: 5px 0; font-family: Arial, sans-serif;">
-            DSWD Field Office XI, (address), Philippines (Zip Code)<br>
-            Website: http://www.dswd.gov.ph Tel Nos.: __________ Telefax: __________
+        
+        <!-- Footer -->
+        <p style="text-align: center; font-size: 7.5pt; margin-top: 8px; margin-bottom: 2px; font-family: 'Times New Roman', Times, serif; line-height: 1.3;">
+            DSWD Field Office _, (address), Philippines (Zip Code)<br>
+            Website: http://www.dswd.gov.ph Tel Nos.: ________ Telefax: ________
         </p>
-    </div> 
+    </div>
+   </div> 
   
 </body>
 </html>

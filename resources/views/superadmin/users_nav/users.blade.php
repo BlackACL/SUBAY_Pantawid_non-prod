@@ -209,7 +209,10 @@
                         <!-- Username -->
                         <div class="mb-4">
                             <label for="username" class="block font-medium">Username</label>
-                            <input type="text" name="username" id="username" class="w-full border rounded px-3 py-2" required>
+                            <input type="text" name="username" id="username" class="w-full border rounded px-3 py-2" required value="{{ old('username') }}">
+                            @error('username')
+                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                            @enderror
                         </div>
                         <!-- Email -->
                         <div class="mb-4">
@@ -242,26 +245,35 @@
                             <div>
                                 <label for="region" class="block font-medium">Region</label>
                                 <select name="region" id="region" class="w-full border rounded px-3 py-2" required>
-                                    <option value="Region XI">Region XI</option>
+                                    <option value="Region XI" {{ old('region') == 'Region XI' ? 'selected' : '' }}>Region XI</option>
                                 </select>
+                                @error('region')
+                                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                                @enderror
                             </div>
                             <div>
                                 <label for="province" class="block font-medium">Province</label>
                                 <select name="province" id="province" class="w-full border rounded px-3 py-2" required>
                                     <option value="">Select Province</option>
-                                    <option value="DAVAO CITY">DAVAO CITY</option>
-                                    <option value="DAVAO DE ORO">DAVAO DE ORO</option>
-                                    <option value="DAVAO DEL NORTE">DAVAO DEL NORTE</option>
-                                    <option value="DAVAO DEL SUR">DAVAO DEL SUR</option>
-                                    <option value="DAVAO OCCIDENTAL">DAVAO OCCIDENTAL</option>
-                                    <option value="DAVAO ORIENTAL">DAVAO ORIENTAL</option>
+                                    <option value="DAVAO CITY" {{ old('province') == 'DAVAO CITY' ? 'selected' : '' }}>DAVAO CITY</option>
+                                    <option value="DAVAO DE ORO" {{ old('province') == 'DAVAO DE ORO' ? 'selected' : '' }}>DAVAO DE ORO</option>
+                                    <option value="DAVAO DEL NORTE" {{ old('province') == 'DAVAO DEL NORTE' ? 'selected' : '' }}>DAVAO DEL NORTE</option>
+                                    <option value="DAVAO DEL SUR" {{ old('province') == 'DAVAO DEL SUR' ? 'selected' : '' }}>DAVAO DEL SUR</option>
+                                    <option value="DAVAO OCCIDENTAL" {{ old('province') == 'DAVAO OCCIDENTAL' ? 'selected' : '' }}>DAVAO OCCIDENTAL</option>
+                                    <option value="DAVAO ORIENTAL" {{ old('province') == 'DAVAO ORIENTAL' ? 'selected' : '' }}>DAVAO ORIENTAL</option>
                                 </select>
+                                @error('province')
+                                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                                @enderror
                             </div>
                             <div>
                                 <label for="municipality" class="block font-medium">Municipality</label>
                                 <select name="municipality" id="municipality" class="w-full border rounded px-3 py-2 w-64" required>
                                     <option value="">Select Municipality</option>
                                 </select>
+                                @error('municipality')
+                                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                                @enderror
                             </div>
                         </div>
                         <!-- Office -->
@@ -270,6 +282,9 @@
                             <select name="office" id="office" class="w-full border rounded px-3 py-2 w-64">
                                 <option value="">Select Office</option>
                             </select>
+                            @error('office')
+                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                            @enderror
                         </div>
                         <!-- Employee Status | Company ID -->
                         <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -289,22 +304,18 @@
                                 @enderror
                             </div>
                         </div>
-                        <!-- Access Level | Activated -->
-                        <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Access Level -->
+                        <div class="mb-4 w-full md:w-1/2">
                             <div>
                                 <label for="access_level" class="block font-medium">Access Level</label>
                                 <select name="access_level" id="access_level" class="w-full border rounded px-3 py-2">
-                                    <option value="Regional DPSC">Regional DPSC</option>
-                                    <option value="Provincial DPSC">Provincial DPSC</option>
-                                    <option value="Employee">Employee</option>
+                                    <option value="Regional DPSC" {{ old('access_level') == 'Regional DPSC' ? 'selected' : '' }}>Regional DPSC</option>
+                                    <option value="Provincial DPSC" {{ old('access_level') == 'Provincial DPSC' ? 'selected' : '' }}>Provincial DPSC</option>
+                                    <option value="Employee" {{ old('access_level', 'Employee') == 'Employee' ? 'selected' : '' }}>Employee</option>
                                 </select>
-                            </div>
-                            <div>
-                                <label for="activated" class="block font-medium">Activated</label>
-                                <select name="activated" id="activated" class="w-full border rounded px-3 py-2">
-                                    <option value="Yes">Yes</option>
-                                    <option value="No">No</option>
-                                </select>
+                                @error('access_level')
+                                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                                @enderror
                             </div>
                         </div>
 
@@ -557,14 +568,21 @@
                             </div>
                         </div>
 
-                        <!-- Access Level (single column) -->
-                        <div class="mb-4 w-full md:w-1/2">
+                        <!-- Access Level | Activated -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label class="block font-medium">Access Level</label>
                                 <select id="edit-access_level" class="w-full border rounded px-3 py-2">
                                     <option value="Regional DPSC">Regional DPSC</option>
                                     <option value="Provincial DPSC">Provincial DPSC</option>
                                     <option value="Employee">Employee</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-medium">Activated</label>
+                                <select id="edit-activated" class="w-full border rounded px-3 py-2">
+                                    <option value="Yes">Yes</option>
+                                    <option value="No">No</option>
                                 </select>
                             </div>
                         </div>
@@ -1075,6 +1093,7 @@
                     document.getElementById('edit-company_id').value = u.company_id ?? '';
                     document.getElementById('edit-employee_status').value = u.employee_status ?? '';
                     document.getElementById('edit-access_level').value = u.access_level ?? '';
+                    document.getElementById('edit-activated').value = u.activated ?? '';
                     document.getElementById('edit-locked_status').value = u.locked_status ?? '';
 
                     // load selects in sequence and set selected values
@@ -1105,6 +1124,8 @@
                 const id = document.getElementById('edit-user-id')?.value;
                 if (!id) { alert('Missing user id'); return; }
 
+                console.log('Starting update for user ID:', id);
+
                 const payload = {
                     username: document.getElementById('edit-username')?.value ?? '',
                     email: document.getElementById('edit-email')?.value ?? '',
@@ -1118,6 +1139,7 @@
                     employee_status: document.getElementById('edit-employee_status')?.value ?? '',
                     company_id: document.getElementById('edit-company_id')?.value ?? '',
                     access_level: document.getElementById('edit-access_level')?.value ?? '',
+                    activated: document.getElementById('edit-activated')?.value ?? '',
                     locked_status: document.getElementById('edit-locked_status')?.value ?? ''
                 };
 
@@ -1126,6 +1148,9 @@
                                 || '';
 
                 const url = `${usersBaseUrl}/${encodeURIComponent(id)}`;
+
+                console.log('Sending update request to:', url);
+                console.log('Payload:', payload);
 
                 try {
                     const res = await fetch(url, {
@@ -1138,9 +1163,16 @@
                         body: JSON.stringify(Object.assign({ _method: 'PUT', _token: csrfToken }, payload))
                     });
 
+                    console.log('Response status:', res.status);
+
                     const text = await res.text();
+                    console.log('Response text:', text);
+                    
                     let data = null;
-                    try { data = text ? JSON.parse(text) : {}; } catch (err) { data = null; }
+                    try { data = text ? JSON.parse(text) : {}; } catch (err) { 
+                        console.error('Failed to parse JSON:', err);
+                        data = null; 
+                    }
 
                     if (!res.ok) {
                         // If Laravel returns validation errors: data.errors is an object of arrays
@@ -1158,6 +1190,7 @@
                     }
 
                     if (data && data.success) {
+                        console.log('Update successful! Response data:', data);
                         const row = document.getElementById(`user-row-${id}`);
                         if (row && data.user) {
                             // company id (cell index 1)
@@ -1187,6 +1220,20 @@
                             row.children[3].textContent = data.user.province ?? row.children[3].textContent;
                             row.children[4].textContent = data.user.municipality ?? row.children[4].textContent;
                         }
+                        
+                        // Show success message
+                        const successDiv = document.createElement('div');
+                        successDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center';
+                        successDiv.innerHTML = '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> User updated successfully!';
+                        document.body.appendChild(successDiv);
+                        
+                        // Auto-remove after 3 seconds
+                        setTimeout(() => {
+                            if (successDiv && successDiv.parentNode) {
+                                successDiv.remove();
+                            }
+                        }, 3000);
+                        
                         closeEditModalAfterUpdate();
                         return;
                     }
@@ -1844,6 +1891,13 @@
                 }
             }, 2000);
         }
+
+        // Auto-open modal if there are validation errors
+        @if($errors->any())
+            document.addEventListener('DOMContentLoaded', function() {
+                openModal();
+            });
+        @endif
 
     </script>
 

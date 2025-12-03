@@ -13,26 +13,51 @@
 
     <div class="py-12" id="main-content">
         <div class="max-w-full mx-auto sm:px-6 lg:px-8">
-            <!-- Dropdown Filters -->
-            <div class="flex gap-4 mb-4">
-                <form method="GET" action="{{ route('archives') }}" class="flex gap-2">
-                    <select id="filterProvince" name="province" class="border rounded px-3 py-2">
-                        <option value="">Filter by Province</option>
-                        <option value="DAVAO CITY" {{ request('province')=='DAVAO CITY'?'selected':'' }}>DAVAO CITY</option>
-                        <option value="DAVAO DE ORO" {{ request('province')=='DAVAO DE ORO'?'selected':'' }}>DAVAO DE ORO</option>
-                        <option value="DAVAO DEL NORTE" {{ request('province')=='DAVAO DEL NORTE'?'selected':'' }}>DAVAO DEL NORTE</option>
-                        <option value="DAVAO DEL SUR" {{ request('province')=='DAVAO DEL SUR'?'selected':'' }}>DAVAO DEL SUR</option>
-                        <option value="DAVAO OCCIDENTAL" {{ request('province')=='DAVAO OCCIDENTAL'?'selected':'' }}>DAVAO OCCIDENTAL</option>
-                        <option value="DAVAO ORIENTAL" {{ request('province')=='DAVAO ORIENTAL'?'selected':'' }}>DAVAO ORIENTAL</option>
-                    </select>
 
-                    <select id="filterMunicipality" name="municipality" class="border rounded px-3 py-2">
-                        <option value="">Filter by Municipality</option>
-                    </select>
+            {{-- Filters --}}
+            <div class="flex justify-between items-center mb-4">
+                <form method="GET" action="{{ route('archives') }}" id="filters-form" class="flex gap-2">
+                    <!-- Province Dropdown -->
+                    <div class="relative w-56">
+                        <select name="province" id="filter-province" class="border rounded px-3 py-2 pr-10 w-full appearance-none">
+                            <option value="">Filter by Province</option>
+                            <option value="DAVAO CITY" {{ request('province') == 'DAVAO CITY' ? 'selected' : '' }}>DAVAO CITY</option>
+                            <option value="DAVAO DE ORO" {{ request('province') == 'DAVAO DE ORO' ? 'selected' : '' }}>DAVAO DE ORO</option>
+                            <option value="DAVAO DEL NORTE" {{ request('province') == 'DAVAO DEL NORTE' ? 'selected' : '' }}>DAVAO DEL NORTE</option>
+                            <option value="DAVAO DEL SUR" {{ request('province') == 'DAVAO DEL SUR' ? 'selected' : '' }}>DAVAO DEL SUR</option>
+                            <option value="DAVAO OCCIDENTAL" {{ request('province') == 'DAVAO OCCIDENTAL' ? 'selected' : '' }}>DAVAO OCCIDENTAL</option>
+                            <option value="DAVAO ORIENTAL" {{ request('province') == 'DAVAO ORIENTAL' ? 'selected' : '' }}>DAVAO ORIENTAL</option>
+                        </select>
+                        <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </span>
+                    </div>
 
-                    <select id="filterOffice" name="office" class="border rounded px-3 py-2">
-                        <option value="">Filter by Office</option>
-                    </select>
+                    <!-- Municipality Dropdown -->
+                    <div class="relative w-56">
+                        <select name="municipality" id="filter-municipality" class="border rounded px-3 py-2 pr-10 w-full appearance-none">
+                            <option value="">Filter by Municipality</option>
+                        </select>
+                        <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </span>
+                    </div>
+
+                    <!-- Office Dropdown -->
+                    <div class="relative w-56">
+                        <select name="office" id="filter-office" class="border rounded px-3 py-2 pr-10 w-full appearance-none">
+                            <option value="">Filter by Office</option>
+                        </select>
+                        <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </span>
+                    </div>
 
                     <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Apply</button>
 
@@ -42,7 +67,7 @@
                 </form>
             </div>
 
-            <!-- Search -->
+            {{-- Search + Buttons --}}
             <div class="flex justify-between items-center mb-6">
                 <div class="max-w-md w-full">
                     <form method="GET" action="{{ route('archives') }}" class="flex gap-2">
@@ -204,93 +229,97 @@
             }, timeout);
         }
 
-        // Province → Municipality map
-        const provinceMunicipalityMap = {
-            "DAVAO CITY": ["Davao City"],
-            "DAVAO OCCIDENTAL": ["DON MARCELINO","JOSE ABAD SANTOS (TRINIDAD)","MALITA","SANTA MARIA","SARANGANI"],
-            "DAVAO DE ORO": ["MONKAYO","COMPOSTELA","MONTEVISTA","NEW BATAAN","MARAGUSAN (SAN MARIANO)","NABUNTURAN (Capital)","MAWAB","MACO","PANTUKAN","MABINI (DOÑA ALICIA)","LAAK (SAN VICENTE)"],
-            "DAVAO DEL NORTE": ["ASUNCION (SAUG)","BRAULIO E. DUJALI","CARMEN","KAPALONG","NEW CORELLA","SAN ISIDRO","SANTO TOMAS","TALAINGOD","CITY OF TAGUM (Capital)","CITY OF PANABO","ISLAND GARDEN CITY OF SAMAL"],
-            "DAVAO DEL SUR": ["BANSALAN","HAGONOY","KIBLAWAN","MAGSAYSAY","MALALAG","MATANAO","PADADA","SANTA CRUZ","CITY OF DIGOS (Capital)","SULOP"],
-            "DAVAO ORIENTAL": ["BAGANGA","BANAYBANAY","BOSTON","CARAGA","CATEEL","GOVERNOR GENEROSO","LUPON","MANAY","CITY OF MATI (Capital)","SAN ISIDRO","TARRAGONA"]
-        };
-
-        // Municipality → Offices map
-        const officeMap = {
-            "Davao City": ["Paquibato Sub-District","Talomo A Sub-District","Talomo B Sub-District","Toril A Sub-District","Toril B Sub-District","Buhangin A Sub-District","Buhangin B Sub-District","Poblacion Sub-District","Agdao Sub-District","Bunawan Sub-District","Calinan Sub-District","Baguio Sub-District","Tugbok Sub-District","Marilog Sub-District"],
-            "MONKAYO": ["Monkayo Municipal Operations Office"], "COMPOSTELA": ["Compostela Municipal Operation Office"], "MONTEVISTA": ["Montevista Municipal Operations Office"], "NEW BATAAN": ["New Bataan Municipal Operations Office"], "MARAGUSAN (SAN MARIANO)": ["Maragusan Municipal Operations Office"], "NABUNTURAN (Capital)": ["Nabunturan Municipal Operations Office"], "MAWAB": ["Mawab Municipal Operations Office"], "MACO": ["Maco Municipal Operations Office"], "PANTUKAN": ["Pantukan Municipal Operations Office"], "MABINI (DOÑA ALICIA)": ["Mabini Municipal Operations Office"], "LAAK (SAN VICENTE)": ["Laak Municipal Operations Office"],
-            "BAGANGA": ["Baganga Municipal Operations Office"], "BANAYBANAY": ["Banaybanay Municipal Operations Office"], "BOSTON": ["Boston Municipal Operations Office"], "CARAGA": ["Caraga Municipal Operations Office"], "CATEEL": ["Cateel Municipal Operations Office"], "GOVERNOR GENEROSO": ["Governor Generoso Municipal Operations Office"], "LUPON": ["Lupon Municipal Operations Office"], "MANAY": ["Manay Municipal Operations Office"], "CITY OF MATI (Capital)": ["Mati City Operations Office"], "SAN ISIDRO": ["San Isidro Municipal Operations Office"], "TARRAGONA": ["Tarragona Municipal Operations Office"],
-            "ASUNCION (SAUG)": ["Asuncion Municipal Operations Office"], "BRAULIO E. DUJALI": ["Braulio E. Dujali Municipal Operations Office"], "CARMEN": ["Carmen Municipal Operations Office"], "KAPALONG": ["Kapalong Municipal Operations Office"], "NEW CORELLA": ["New Corella Municipal Operations Office"], "SANTO TOMAS": ["Santo Tomas Municipal Operations Office"], "TALAINGOD": ["Talaingod Municipal Operations Office"], "CITY OF TAGUM (Capital)": ["Tagum City Operations Office"], "CITY OF PANABO": ["Panabo City Operations Office"], "ISLAND GARDEN CITY OF SAMAL": ["Island Garden City of Samal City Operations Office"],
-            "DON MARCELINO": ["Don Marcelino Municipal Operations Office"], "JOSE ABAD SANTOS (TRINIDAD)": ["Jose Abad Santos Municipal Operations Office"], "MALITA": ["Malita Municipal Operations Office"], "SANTA MARIA": ["Santa Maria Municipal Operations Office"], "SARANGANI": ["Sarangani Municipal Operations Office"],
-            "BANSALAN": ["Bansalan Municipal Operations Office"], "HAGONOY": ["Hagonoy Municipal Operations Office"], "KIBLAWAN": ["Kiblawan Municipal Operations Office"], "MAGSAYSAY": ["Magsaysay Municipal Operations Office"], "MALALAG": ["Malalag Municipal Operations Office"], "MATANAO": ["Matanao Municipal Operations Office"], "PADADA": ["Padada Municipal Operations Office"], "SANTA CRUZ": ["Sta. Cruz Municipal Operations Office"], "CITY OF DIGOS (Capital)": ["Digos City Operations Office"], "SULOP": ["Sulop Municipal Operations Office"]
-        };
-
-        // Filter wiring
-        (function() {
-            const filterProvince = document.getElementById('filterProvince');
-            const filterMunicipality = document.getElementById('filterMunicipality');
-            const filterOffice = document.getElementById('filterOffice');
-
-            if (!filterProvince || !filterMunicipality || !filterOffice) return;
-
-            filterProvince.addEventListener('change', function() {
-                const selectedProvince = this.value;
-                filterMunicipality.innerHTML = '<option value="">Filter by Municipality</option>';
-                filterOffice.innerHTML = '<option value="">Filter by Office</option>';
-                if (provinceMunicipalityMap[selectedProvince]) {
-                    provinceMunicipalityMap[selectedProvince].forEach(muni => {
-                        const option = document.createElement('option');
-                        option.value = muni;
-                        option.textContent = muni;
-                        filterMunicipality.appendChild(option);
-                    });
-
-                    if (selectedProvince === "DAVAO CITY") {
-                        filterMunicipality.value = "Davao City";
-                        loadFilterOffices("Davao City");
-                    }
+        /* -------------------
+        Helper: populate select options (small utility)
+        ------------------- */
+        function populateSelectOptions(selectElem, items, placeholderText = 'Select', selectedValue = '') {
+            if (!selectElem) return;
+            selectElem.innerHTML = '';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = placeholderText;
+            selectElem.appendChild(placeholder);
+            if (!Array.isArray(items) || items.length === 0) return;
+            items.forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v;
+                opt.textContent = v;
+                if (selectedValue !== undefined && selectedValue !== null && selectedValue.toString() === v.toString()) {
+                    opt.selected = true;
                 }
+                selectElem.appendChild(opt);
             });
+        }
 
-            filterMunicipality.addEventListener('change', function() {
-                loadFilterOffices(this.value);
-            });
+        /* -------------------
+        DATA MAPPINGS (dynamic from database via Place model)
+        ------------------- */
+        // Dynamic data from database via Place model
+        const provinceMunicipalityMap = @json($provinceMunicipalityMap);
 
-            function loadFilterOffices(municipality) {
-                filterOffice.innerHTML = '<option value="">Filter by Office</option>';
-                if (officeMap[municipality]) {
-                    officeMap[municipality].forEach(off => {
-                        const option = document.createElement('option');
-                        option.value = off;
-                        option.textContent = off;
-                        filterOffice.appendChild(option);
-                    });
+        // Dynamic data from database via Place model
+        const officeMap = @json($officeMap);
+
+        /* ================================
+        FILTER FUNCTIONS FOR ARCHIVES PAGE
+        ================================ */
+        function loadProvincesFilter(selectId, selected) {
+            const sel = document.getElementById(selectId);
+            if (!sel) return;
+            populateSelectOptions(sel, Object.keys(provinceMunicipalityMap), 'Filter by Province', selected ?? '');
+        }
+        function loadMunicipalitiesFilter(province, selectId, selected) {
+            const sel = document.getElementById(selectId);
+            if (!sel) return;
+            const list = provinceMunicipalityMap[province] || [];
+            populateSelectOptions(sel, list, 'Filter by Municipality', selected ?? '');
+        }
+        function loadOfficesFilter(municipality, selectId, selected) {
+            const sel = document.getElementById(selectId);
+            if (!sel) return;
+            const list = officeMap[municipality] || [];
+            populateSelectOptions(sel, list, 'Filter by Office', selected ?? '');
+        }
+
+        /* -------------------
+        Safe initial filter values (from Blade -> JS)
+        ------------------- */
+        const initialFilterProvince     = '{{ request("province", "") }}';
+        const initialFilterMunicipality = '{{ request("municipality", "") }}';
+        const initialFilterOffice       = '{{ request("office", "") }}';
+
+        /* -------------------
+        DOMContentLoaded: wire Archives Filters
+        ------------------- */
+        document.addEventListener('DOMContentLoaded', function() {
+            const fProv = document.getElementById('filter-province');
+            const fMun  = document.getElementById('filter-municipality');
+            const fOff  = document.getElementById('filter-office');
+
+            if (fProv) {
+                loadProvincesFilter('filter-province', initialFilterProvince || '');
+                // if there's an initial province, load municipalities and offices
+                if (initialFilterProvince) {
+                    loadMunicipalitiesFilter(initialFilterProvince, 'filter-municipality', initialFilterMunicipality || '');
+                } else {
+                    populateSelectOptions(fMun, [], 'Filter by Municipality');
                 }
+                if (initialFilterMunicipality) {
+                    loadOfficesFilter(initialFilterMunicipality, 'filter-office', initialFilterOffice || '');
+                } else {
+                    populateSelectOptions(fOff, [], 'Filter by Office');
+                }
+
+                fProv.addEventListener('change', function(e) {
+                    const prov = e.target.value;
+                    loadMunicipalitiesFilter(prov, 'filter-municipality');
+                    populateSelectOptions(fOff, [], 'Filter by Office'); // clear offices when province changes
+                });
+                fMun && fMun.addEventListener('change', function(e) {
+                    loadOfficesFilter(e.target.value, 'filter-office');
+                });
             }
-
-            // prefill after reload
-            document.addEventListener('DOMContentLoaded', function() {
-                const selectedProvince = filterProvince.value;
-                const selectedMunicipality = "{{ request('municipality') }}";
-                const selectedOffice = "{{ request('office') }}";
-
-                if (selectedProvince && provinceMunicipalityMap[selectedProvince]) {
-                    provinceMunicipalityMap[selectedProvince].forEach(muni => {
-                        const option = document.createElement('option');
-                        option.value = muni;
-                        option.textContent = muni;
-                        filterMunicipality.appendChild(option);
-                    });
-                    if (selectedMunicipality) {
-                        filterMunicipality.value = selectedMunicipality;
-                        loadFilterOffices(selectedMunicipality);
-                    }
-                }
-
-                if (selectedOffice) {
-                    filterOffice.value = selectedOffice;
-                }
-            });
-        })();
+        });
 
         // --- User Profile Modal functions ---
         function openUserProfile(userId) {

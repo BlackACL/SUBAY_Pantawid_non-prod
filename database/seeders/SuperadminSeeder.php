@@ -14,12 +14,12 @@ class SuperadminSeeder extends Seeder
     public function run(): void
     {
         $superadmin = User::firstOrCreate(
-            ['email' => 'superadmin@gmail.com'],
+            ['email' => 'main.central321@gmail.com'],
             [
                 'full_name' => 'Superadmin',
-                'username' => 'superadmin',
+                'username' => 'Superadmin',
                 'email_verified_at' => now(),
-                'password' => Hash::make('superadmin'),
+                'password' => Hash::make('Superadmin@123'),
                 'status' => 'REGULAR',
                 'region' => 'Region XI',
                 'office_id' => 1, // make sure office ID 1 exists
