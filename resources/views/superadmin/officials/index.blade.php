@@ -416,9 +416,9 @@
             } else {
                 // This block is for USER-BASED roles (DPSCs). It creates a <select> dropdown.
                 const timestamp = new Date().getTime(); // Cache busting
-                const url = `/eligible-users?role=${encodeURIComponent(role)}&province=${encodeURIComponent(province)}&active_id=${activeId || ''}&_t=${timestamp}`;
-                console.log('Fetching eligible users from:', url); // Debug log
-                fetch(url)
+                const apiUrl = url(`eligible-users?role=${encodeURIComponent(role)}&province=${encodeURIComponent(province)}&active_id=${activeId || ''}&_t=${timestamp}`);
+                console.log('Fetching eligible users from:', apiUrl); // Debug log
+                fetch(apiUrl)
                     .then(res => res.json())
                     .then(data => {
                         console.log('Eligible users data received:', data); // Debug log
@@ -485,9 +485,9 @@
             modal.classList.add('flex');
             
             // Fetch history
-            const url = `/officials/history/${encodeURIComponent(role)}/${encodeURIComponent(province || '-')}`;
+            const apiUrl = url(`officials/history/${encodeURIComponent(role)}/${encodeURIComponent(province || '-')}`);
             try {
-                const res = await fetch(url);
+                const res = await fetch(apiUrl);
                 const history = await res.json();
                 
                 // Clear existing rows
@@ -549,9 +549,9 @@
                     console.log('showHistory set to:', this.showHistory);
                     console.log('Alpine component data:', this.$data);
 
-                    let url = `/officials/history/${encodeURIComponent(role)}/${encodeURIComponent(province || '-')}`;
-                    console.log('Fetching from:', url);
-                    let res = await fetch(url);
+                    let apiUrl = url(`officials/history/${encodeURIComponent(role)}/${encodeURIComponent(province || '-')}`);
+                    console.log('Fetching from:', apiUrl);
+                    let res = await fetch(apiUrl);
                     this.historyList = await res.json();
                     console.log('History loaded:', this.historyList);
                     

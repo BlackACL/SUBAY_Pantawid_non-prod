@@ -924,7 +924,7 @@
             document.getElementById('user-profile-modal')?.classList.remove('hidden');
             document.getElementById('main-content')?.classList.add('blur-md');
 
-            fetch(`/users/${userId}/profile`)
+            fetch(url(`users/${userId}/profile`))
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
@@ -1063,7 +1063,7 @@
             */
             async function openEditModal(userId) {
                 try {
-                    const res = await fetch(`/users/${userId}/profile`, { headers: { 'Accept': 'application/json' } });
+                    const res = await fetch(url(`users/${userId}/profile`), { headers: { 'Accept': 'application/json' } });
                     const data = await res.json();
                     if (!data.success) {
                         alert('Failed to load user profile');
@@ -1274,7 +1274,7 @@
 
             const interval = setInterval(async () => {
                 try {
-                    const res = await fetch('/import/progress');
+                    const res = await fetch(url('import/progress'));
                     if (!res.ok) {
                         throw new Error('Network response was not ok');
                     }
@@ -1488,7 +1488,7 @@
             displayedLogCount = 0;
             
             // Clear any old progress data first
-            fetch('/import/clear-progress', {
+            fetch(url('import/clear-progress'), {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
@@ -1591,7 +1591,7 @@
 
         // Poll for progress updates
         function pollProgress() {
-            fetch('/import/progress', {
+            fetch(url('import/progress'), {
                 method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',

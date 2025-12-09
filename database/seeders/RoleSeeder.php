@@ -13,9 +13,9 @@ class RoleSeeder extends Seeder
      */
     public function run(): void
     {
-        Role::firstOrcreate(['name' => 'superadmin']);
-        Role::firstOrcreate(['name' => 'Regional DPSC']);
-        Role::firstOrcreate(['name' => 'Provincial DPSC']);
+        Role::firstOrCreate(['name' => 'superadmin']);
+        Role::firstOrCreate(['name' => 'Regional DPSC']);
+        Role::firstOrCreate(['name' => 'Provincial DPSC']);
         Role::firstOrCreate(['name' => 'Employee', 'guard_name' => 'web']);
     }
 }

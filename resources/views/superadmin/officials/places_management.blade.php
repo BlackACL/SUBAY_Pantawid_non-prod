@@ -174,7 +174,7 @@ function closeModal(modalId) {
 }
 
 function loadProvinces() {
-    fetch('/api/places/provinces').then(r => r.json()).then(data => {
+    fetch(url('api/places/provinces')).then(r => r.json()).then(data => {
         const select = document.getElementById('municipalityProvinceSelect');
         select.innerHTML = '<option value="">-- Select Province --</option>';
         data.forEach(p => { select.innerHTML += `<option value="${p.id}">${p.name}</option>`; });
@@ -182,7 +182,7 @@ function loadProvinces() {
 }
 
 function loadProvincesForOffice() {
-    fetch('/api/places/provinces').then(r => r.json()).then(data => {
+    fetch(url('api/places/provinces')).then(r => r.json()).then(data => {
         const select = document.getElementById('officeProvinceSelect');
         select.innerHTML = '<option value="">-- Select Province --</option>';
         data.forEach(p => { select.innerHTML += `<option value="${p.id}">${p.name}</option>`; });
@@ -198,7 +198,7 @@ function loadMunicipalitiesForOffice() {
         return;
     }
     
-    fetch('/api/places/municipalities').then(r => r.json()).then(data => {
+    fetch(url('api/places/municipalities')).then(r => r.json()).then(data => {
         munSelect.innerHTML = '<option value="">-- Select Municipality --</option>';
         data.filter(m => m.parent_id == provinceId).forEach(m => {
             munSelect.innerHTML += `<option value="${m.id}">${m.name}</option>`;
@@ -207,7 +207,7 @@ function loadMunicipalitiesForOffice() {
 }
 
 function loadPlacesHierarchy() {
-    fetch('/api/places/hierarchy').then(r => r.json()).then(data => {
+    fetch(url('api/places/hierarchy')).then(r => r.json()).then(data => {
         placesData = data;
         renderPlacesTable();
     }).catch(error => {
@@ -308,7 +308,7 @@ function renderPlacesTable() {
 
 function deletePlace(id, type, name) {
     if (!confirm(`Are you sure you want to delete this ${type}: ${name}?\n\nNote: Deleting will also remove all child locations.`)) return;
-    fetch(`/api/places/${id}`, {
+    fetch(url(`api/places/${id}`), {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }
     }).then(r => r.json()).then(data => {

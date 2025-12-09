@@ -10,6 +10,20 @@ window.axios = axios;
 window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
 /**
+ * Helper function to create URLs with the configured base URL
+ * This ensures all API calls work regardless of deployment path
+ * 
+ * Usage:
+ *   url('/users/123')  // Returns: http://domain.com/subay/users/123
+ *   url('api/places')  // Returns: http://domain.com/subay/api/places
+ */
+window.url = function(path) {
+    // Remove leading slash if present to avoid double slashes
+    path = path.replace(/^\//, '');
+    return `${window.BASE_URL}/${path}`;
+};
+
+/**
  * Echo exposes an expressive API for subscribing to channels and listening
  * for events that are broadcast by Laravel. Echo and event broadcasting
  * allows your team to easily build robust real-time web applications.

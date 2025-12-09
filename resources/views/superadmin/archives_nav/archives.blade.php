@@ -328,7 +328,7 @@
             document.getElementById('user-profile-modal').classList.remove('hidden');
             document.getElementById('main-content').classList.add('blur-md');
 
-            fetch(`/users/${userId}/profile`, { headers: { 'Accept': 'application/json' } })
+            fetch(url(`users/${userId}/profile`), { headers: { 'Accept': 'application/json' } })
                 .then(res => res.json())
                 .then(data => {
                     if (data && data.success) {
@@ -396,7 +396,7 @@
         document.getElementById('main-content').classList.add('blur-md');
 
         try {
-            const res = await fetch(`/users/${userId}/history`, {
+            const res = await fetch(url(`users/${userId}/history`), {
                 headers: { 'Accept': 'application/json' },
                 method: 'GET',
             });
@@ -534,7 +534,7 @@
         }
 
         try {
-            const res = await fetch(`/users/${userId}/unarchive`, {
+            const res = await fetch(url(`users/${userId}/unarchive`), {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': csrfToken,

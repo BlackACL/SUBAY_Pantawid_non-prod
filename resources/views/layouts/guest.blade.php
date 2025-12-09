@@ -10,6 +10,11 @@
         <!-- Favicon -->
         <link rel="icon" type="image/png" href="{{ asset('images/dswd_logo_hand.png') }}">
 
+        <!-- Base URL Configuration for JavaScript -->
+        <script>
+            window.BASE_URL = "{{ rtrim(config('app.url'), '/') }}";
+        </script>
+
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         {{-- <script src="https://www.google.com/recaptcha/api.js?render={{ config('services.recaptcha.site_key') }}" async defer></script> --}}
