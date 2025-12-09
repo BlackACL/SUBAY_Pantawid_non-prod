@@ -8,19 +8,19 @@
     <div class="flex items-center justify-center py-8 border-b">
         @if(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('superadmin'))
             <a href="{{ route('superadmin.dashboard') }}">
-                <img src="/images/dswd_logoXI.png" alt="DSWD Logo" class="h-16 w-auto drop-shadow" />
+                <img src="{{ asset('images/dswd_logoXI.png') }}" alt="DSWD Logo" class="h-16 w-auto drop-shadow" />
             </a>
         @elseif(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('Regional DPSC'))
             <a href="{{ route('Regional.Dashboard') }}">
-                <img src="/images/dswd_logoXI.png" alt="DSWD Logo" class="h-16 w-auto drop-shadow" />
+                <img src="{{ asset('images/dswd_logoXI.png') }}" alt="DSWD Logo" class="h-16 w-auto drop-shadow" />
             </a>
         @elseif(Auth::check() && method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('Provincial DPSC'))
             <a href="{{ route('Provincial.Dashboard') }}">
-                <img src="/images/dswd_logoXI.png" alt="DSWD Logo" class="h-16 w-auto drop-shadow" />
+                <img src="{{ asset('images/dswd_logoXI.png') }}" alt="DSWD Logo" class="h-16 w-auto drop-shadow" />
             </a>
         @else
             <a href="{{ route('Inventory') }}">
-                <img src="/images/dswd_logoXI.png" alt="DSWD Logo" class="h-16 w-auto drop-shadow" />
+                <img src="{{ asset('images/dswd_logoXI.png') }}" alt="DSWD Logo" class="h-16 w-auto drop-shadow" />
             </a>
         @endif
     </div>

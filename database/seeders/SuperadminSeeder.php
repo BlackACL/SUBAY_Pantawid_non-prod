@@ -16,7 +16,7 @@ class SuperadminSeeder extends Seeder
         $superadmin = User::firstOrCreate(
             ['email' => 'main.central321@gmail.com'],
             [
-                'full_name' => 'Superadmin',
+                'fullname' => 'Superadmin',
                 'username' => 'Superadmin',
                 'email_verified_at' => now(),
                 'password' => Hash::make('Superadmin@123'),
